@@ -25,9 +25,18 @@ type TripTableProps = {
   onSelectTrip?: (trip: TripRecord) => void;
   selectedTripID?: string;
   unitSystem?: string;
+  selectedTripIDs?: string[];
+  onToggleTripSelection?: (tripID: string) => void;
 };
 
-export function TripTable({ trips, onSelectTrip, selectedTripID, unitSystem }: TripTableProps) {
+export function TripTable({
+  trips,
+  onSelectTrip,
+  selectedTripID,
+  unitSystem,
+  selectedTripIDs = [],
+  onToggleTripSelection
+}: TripTableProps) {
   if (trips.length === 0) {
     return <div className="empty-state">No trips have been synced for this account yet.</div>;
   }
@@ -37,6 +46,7 @@ export function TripTable({ trips, onSelectTrip, selectedTripID, unitSystem }: T
       <table>
         <thead>
           <tr>
+            {onToggleTripSelection ? <th>Select</th> : null}
             <th>Date</th>
             <th>Trip</th>
             <th>Vehicle</th>
@@ -56,6 +66,16 @@ export function TripTable({ trips, onSelectTrip, selectedTripID, unitSystem }: T
                   selectedTripID === trip.id ? "rgba(242, 140, 40, 0.08)" : undefined
               }}
             >
+              {onToggleTripSelection ? (
+                <td onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedTripIDs.includes(trip.id)}
+                    onChange={() => onToggleTripSelection(trip.id)}
+                    aria-label={`Select ${trip.name || trip.tripType || "trip"}`}
+                  />
+                </td>
+              ) : null}
               <td>{formatDate(trip.date)}</td>
               <td>{trip.name || trip.tripType || "Trip"}</td>
               <td>{trip.vehicleProfileName || "—"}</td>

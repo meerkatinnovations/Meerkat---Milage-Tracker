@@ -85,6 +85,7 @@ export default function TripsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [selectedTripID, setSelectedTripID] = useState("");
+  const [selectedTripIDs, setSelectedTripIDs] = useState<string[]>([]);
   const [formState, setFormState] = useState<TripFormState | null>(null);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
@@ -101,6 +102,9 @@ export default function TripsPage() {
       const nextTrips = await fetchCollection<TripRecord>(safeUID, "trips");
       setProfile(nextProfile);
       setTrips(nextTrips);
+      setSelectedTripIDs((currentSelectedTripIDs) =>
+        currentSelectedTripIDs.filter((tripID) => nextTrips.some((trip) => trip.id == tripID))
+      );
 
       if (nextTrips.length > 0 && !selectedTripID) {
         setSelectedTripID(nextTrips[0].id);
@@ -199,6 +203,61 @@ export default function TripsPage() {
     }
   }
 
+  async function handleDeleteSelected() {
+    if (!uid || selectedTripIDs.length == 0) {
+      return;
+    }
+    const safeUID = uid;
+    const tripIDsToDelete = selectedTripIDs;
+
+    if (!window.confirm(`Delete ${tripIDsToDelete.length} selected trips from Firebase? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setStatus("");
+
+    try {
+      await Promise.all(tripIDsToDelete.map((tripID) => deleteTrip(safeUID, tripID)));
+
+      setTrips((currentTrips) => {
+        const nextTrips = currentTrips.filter((trip) => !tripIDsToDelete.includes(trip.id));
+        const didDeleteCurrentTrip = formState ? tripIDsToDelete.includes(formState.id) : false;
+        let nextSelectedTripID = selectedTripID;
+        let nextFormState = formState;
+
+        if (didDeleteCurrentTrip) {
+          let nextSelectedTrip = nextTrips[0];
+          if (selectedTripID) {
+            nextSelectedTrip = nextTrips.find((trip) => trip.id === selectedTripID) ?? nextSelectedTrip;
+          }
+          nextSelectedTripID = nextSelectedTrip?.id ?? "";
+          nextFormState = nextSelectedTrip ? toFormState(nextSelectedTrip, profile?.unitSystem) : null;
+        }
+
+        setSelectedTripID(nextSelectedTripID);
+        setFormState(nextFormState);
+        return nextTrips;
+      });
+      setSelectedTripIDs([]);
+      setStatus(`${tripIDsToDelete.length} trips deleted from Firebase.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to delete selected trips.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function toggleTripSelection(tripID: string) {
+    setSelectedTripIDs((currentSelectedTripIDs) => {
+      if (currentSelectedTripIDs.includes(tripID)) {
+        return currentSelectedTripIDs.filter((currentTripID) => currentTripID !== tripID);
+      }
+
+      return [...currentSelectedTripIDs, tripID];
+    });
+  }
+
   return (
     <AuthGuard>
       <NavShell
@@ -207,11 +266,44 @@ export default function TripsPage() {
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)" }}>
           <div style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>
+            <div className="card panel" style={{ marginBottom: 12 }}>
+              <div className="grid" style={{ gridTemplateColumns: "1fr auto auto", alignItems: "center" }}>
+                <div className="muted">
+                  {selectedTripIDs.length == 0
+                    ? "Select one or more trips to bulk delete them."
+                    : `${selectedTripIDs.length} trip${selectedTripIDs.length == 1 ? "" : "s"} selected`}
+                </div>
+
+                <button
+                  className="button secondary"
+                  type="button"
+                  onClick={() => setSelectedTripIDs(trips.map((trip) => trip.id))}
+                  disabled={trips.length == 0 || deleting}
+                >
+                  Select All
+                </button>
+
+                <button
+                  className="button"
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedTripIDs.length == 0 || saving || deleting}
+                  style={{
+                    background: deleting ? "rgba(174, 31, 31, 0.75)" : "#ae1f1f"
+                  }}
+                >
+                  {deleting ? "Deleting…" : "Delete Selected"}
+                </button>
+              </div>
+            </div>
+
             <TripTable
               trips={trips}
               selectedTripID={selectedTripID}
               onSelectTrip={(trip) => setSelectedTripID(trip.id)}
               unitSystem={profile?.unitSystem}
+              selectedTripIDs={selectedTripIDs}
+              onToggleTripSelection={toggleTripSelection}
             />
           </div>
 
