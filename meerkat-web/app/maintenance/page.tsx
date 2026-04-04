@@ -41,6 +41,7 @@ function toFormState(record: MaintenanceRecord): MaintenanceFormState {
 
 export default function MaintenancePage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [selectedRecordID, setSelectedRecordID] = useState("");
   const [formState, setFormState] = useState<MaintenanceFormState | null>(null);
@@ -48,12 +49,12 @@ export default function MaintenancePage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function loadRecords() {
-      const nextRecords = await fetchCollectionUnordered<MaintenanceRecord>(user.uid, "maintenanceRecords");
+      const nextRecords = await fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords");
       setRecords(nextRecords);
 
       if (nextRecords.length > 0 && !selectedRecordID) {
@@ -63,7 +64,7 @@ export default function MaintenancePage() {
     }
 
     void loadRecords();
-  }, [selectedRecordID, user]);
+  }, [selectedRecordID, uid]);
 
   useEffect(() => {
     if (!selectedRecordID) {
@@ -78,7 +79,7 @@ export default function MaintenancePage() {
   }, [records, selectedRecordID]);
 
   async function handleSave() {
-    if (!user || !formState) {
+    if (!uid || !formState) {
       return;
     }
 
@@ -101,7 +102,7 @@ export default function MaintenancePage() {
           : undefined
       };
 
-      await saveMaintenanceRecord(user.uid, payload);
+      await saveMaintenanceRecord(uid, payload);
       setRecords((currentRecords) =>
         currentRecords.map((record) =>
           record.id === payload.id

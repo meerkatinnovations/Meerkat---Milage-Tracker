@@ -18,6 +18,7 @@ import { TripTable } from "@/components/trip-table";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
@@ -25,17 +26,17 @@ export default function DashboardPage() {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function load() {
       const [nextProfile, nextTrips, nextVehicles, nextFuel, nextMaintenance] = await Promise.all([
-        fetchUserProfile(user.uid),
-        fetchCollection<TripRecord>(user.uid, "trips"),
-        fetchCollectionUnordered<VehicleRecord>(user.uid, "vehicles"),
-        fetchCollectionUnordered<FuelRecord>(user.uid, "fuelEntries"),
-        fetchCollectionUnordered<MaintenanceRecord>(user.uid, "maintenanceRecords")
+        fetchUserProfile(uid),
+        fetchCollection<TripRecord>(uid, "trips"),
+        fetchCollectionUnordered<VehicleRecord>(uid, "vehicles"),
+        fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries"),
+        fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords")
       ]);
 
       setProfile(nextProfile);
@@ -46,7 +47,7 @@ export default function DashboardPage() {
     }
 
     void load();
-  }, [user]);
+  }, [uid]);
 
   return (
     <AuthGuard>

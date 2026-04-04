@@ -40,20 +40,21 @@ function toCSV(rows: Array<Record<string, unknown>>) {
 
 export default function ExportsPage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [fuelEntries, setFuelEntries] = useState<FuelRecord[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function load() {
       const [nextTrips, nextFuelEntries, nextMaintenanceRecords] = await Promise.all([
-        fetchCollectionUnordered<TripRecord>(user.uid, "trips"),
-        fetchCollectionUnordered<FuelRecord>(user.uid, "fuelEntries"),
-        fetchCollectionUnordered<MaintenanceRecord>(user.uid, "maintenanceRecords")
+        fetchCollectionUnordered<TripRecord>(uid, "trips"),
+        fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries"),
+        fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords")
       ]);
 
       setTrips(nextTrips);
@@ -62,7 +63,7 @@ export default function ExportsPage() {
     }
 
     void load();
-  }, [user]);
+  }, [uid]);
 
   return (
     <AuthGuard>

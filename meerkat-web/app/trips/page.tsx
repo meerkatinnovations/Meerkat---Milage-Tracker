@@ -54,6 +54,7 @@ function toFormState(trip: TripRecord): TripFormState {
 
 export default function TripsPage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [selectedTripID, setSelectedTripID] = useState("");
   const [formState, setFormState] = useState<TripFormState | null>(null);
@@ -61,12 +62,12 @@ export default function TripsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function loadTrips() {
-      const nextTrips = await fetchCollection<TripRecord>(user.uid, "trips");
+      const nextTrips = await fetchCollection<TripRecord>(uid, "trips");
       setTrips(nextTrips);
 
       if (nextTrips.length > 0 && !selectedTripID) {
@@ -76,7 +77,7 @@ export default function TripsPage() {
     }
 
     void loadTrips();
-  }, [selectedTripID, user]);
+  }, [selectedTripID, uid]);
 
   useEffect(() => {
     if (!selectedTripID) {
@@ -91,7 +92,7 @@ export default function TripsPage() {
   }, [selectedTripID, trips]);
 
   async function handleSave() {
-    if (!user || !formState) {
+    if (!uid || !formState) {
       return;
     }
 
@@ -114,7 +115,7 @@ export default function TripsPage() {
         date: formState.date ? new Date(formState.date) : new Date()
       };
 
-      await saveTrip(user.uid, payload);
+      await saveTrip(uid, payload);
       setTrips((currentTrips) =>
         currentTrips.map((trip) =>
           trip.id === payload.id

@@ -37,6 +37,7 @@ function toFormState(vehicle: VehicleRecord): VehicleFormState {
 
 export default function VehiclesPage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [selectedVehicleID, setSelectedVehicleID] = useState("");
   const [formState, setFormState] = useState<VehicleFormState | null>(null);
@@ -44,12 +45,12 @@ export default function VehiclesPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function loadVehicles() {
-      const nextVehicles = await fetchCollectionUnordered<VehicleRecord>(user.uid, "vehicles");
+      const nextVehicles = await fetchCollectionUnordered<VehicleRecord>(uid, "vehicles");
       setVehicles(nextVehicles);
 
       if (nextVehicles.length > 0 && !selectedVehicleID) {
@@ -59,7 +60,7 @@ export default function VehiclesPage() {
     }
 
     void loadVehicles();
-  }, [selectedVehicleID, user]);
+  }, [selectedVehicleID, uid]);
 
   useEffect(() => {
     if (!selectedVehicleID) {
@@ -74,7 +75,7 @@ export default function VehiclesPage() {
   }, [selectedVehicleID, vehicles]);
 
   async function handleSave() {
-    if (!user || !formState) {
+    if (!uid || !formState) {
       return;
     }
 
@@ -93,7 +94,7 @@ export default function VehiclesPage() {
         archived: formState.archived
       };
 
-      await saveVehicle(user.uid, payload);
+      await saveVehicle(uid, payload);
       setVehicles((currentVehicles) =>
         currentVehicles.map((vehicle) =>
           vehicle.id === payload.id

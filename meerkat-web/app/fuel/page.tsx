@@ -33,6 +33,7 @@ function toFormState(entry: FuelRecord): FuelFormState {
 
 export default function FuelPage() {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [entries, setEntries] = useState<FuelRecord[]>([]);
   const [selectedEntryID, setSelectedEntryID] = useState("");
   const [formState, setFormState] = useState<FuelFormState | null>(null);
@@ -40,12 +41,12 @@ export default function FuelPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       return;
     }
 
     async function loadEntries() {
-      const nextEntries = await fetchCollectionUnordered<FuelRecord>(user.uid, "fuelEntries");
+      const nextEntries = await fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries");
       setEntries(nextEntries);
 
       if (nextEntries.length > 0 && !selectedEntryID) {
@@ -55,7 +56,7 @@ export default function FuelPage() {
     }
 
     void loadEntries();
-  }, [selectedEntryID, user]);
+  }, [selectedEntryID, uid]);
 
   useEffect(() => {
     if (!selectedEntryID) {
@@ -70,7 +71,7 @@ export default function FuelPage() {
   }, [entries, selectedEntryID]);
 
   async function handleSave() {
-    if (!user || !formState) {
+    if (!uid || !formState) {
       return;
     }
 
@@ -87,7 +88,7 @@ export default function FuelPage() {
         odometer: Number(formState.odometer) || 0
       };
 
-      await saveFuelEntry(user.uid, payload);
+      await saveFuelEntry(uid, payload);
       setEntries((currentEntries) =>
         currentEntries.map((entry) =>
           entry.id === payload.id
