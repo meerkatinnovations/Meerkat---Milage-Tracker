@@ -29,14 +29,15 @@ export default function DashboardPage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function load() {
       const [nextProfile, nextTrips, nextVehicles, nextFuel, nextMaintenance] = await Promise.all([
-        fetchUserProfile(uid),
-        fetchCollection<TripRecord>(uid, "trips"),
-        fetchCollectionUnordered<VehicleRecord>(uid, "vehicles"),
-        fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries"),
-        fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords")
+        fetchUserProfile(safeUID),
+        fetchCollection<TripRecord>(safeUID, "trips"),
+        fetchCollectionUnordered<VehicleRecord>(safeUID, "vehicles"),
+        fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries"),
+        fetchCollectionUnordered<MaintenanceRecord>(safeUID, "maintenanceRecords")
       ]);
 
       setProfile(nextProfile);

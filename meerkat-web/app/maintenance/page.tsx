@@ -52,9 +52,10 @@ export default function MaintenancePage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function loadRecords() {
-      const nextRecords = await fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords");
+      const nextRecords = await fetchCollectionUnordered<MaintenanceRecord>(safeUID, "maintenanceRecords");
       setRecords(nextRecords);
 
       if (nextRecords.length > 0 && !selectedRecordID) {
@@ -82,6 +83,7 @@ export default function MaintenancePage() {
     if (!uid || !formState) {
       return;
     }
+    const safeUID = uid;
 
     setSaving(true);
     setStatus("");
@@ -102,7 +104,7 @@ export default function MaintenancePage() {
           : undefined
       };
 
-      await saveMaintenanceRecord(uid, payload);
+      await saveMaintenanceRecord(safeUID, payload);
       setRecords((currentRecords) =>
         currentRecords.map((record) =>
           record.id === payload.id

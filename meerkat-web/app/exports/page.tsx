@@ -49,12 +49,13 @@ export default function ExportsPage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function load() {
       const [nextTrips, nextFuelEntries, nextMaintenanceRecords] = await Promise.all([
-        fetchCollectionUnordered<TripRecord>(uid, "trips"),
-        fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries"),
-        fetchCollectionUnordered<MaintenanceRecord>(uid, "maintenanceRecords")
+        fetchCollectionUnordered<TripRecord>(safeUID, "trips"),
+        fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries"),
+        fetchCollectionUnordered<MaintenanceRecord>(safeUID, "maintenanceRecords")
       ]);
 
       setTrips(nextTrips);

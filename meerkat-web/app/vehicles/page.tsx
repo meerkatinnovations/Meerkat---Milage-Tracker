@@ -48,9 +48,10 @@ export default function VehiclesPage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function loadVehicles() {
-      const nextVehicles = await fetchCollectionUnordered<VehicleRecord>(uid, "vehicles");
+      const nextVehicles = await fetchCollectionUnordered<VehicleRecord>(safeUID, "vehicles");
       setVehicles(nextVehicles);
 
       if (nextVehicles.length > 0 && !selectedVehicleID) {
@@ -78,6 +79,7 @@ export default function VehiclesPage() {
     if (!uid || !formState) {
       return;
     }
+    const safeUID = uid;
 
     setSaving(true);
     setStatus("");
@@ -94,7 +96,7 @@ export default function VehiclesPage() {
         archived: formState.archived
       };
 
-      await saveVehicle(uid, payload);
+      await saveVehicle(safeUID, payload);
       setVehicles((currentVehicles) =>
         currentVehicles.map((vehicle) =>
           vehicle.id === payload.id

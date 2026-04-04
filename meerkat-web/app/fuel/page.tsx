@@ -44,9 +44,10 @@ export default function FuelPage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function loadEntries() {
-      const nextEntries = await fetchCollectionUnordered<FuelRecord>(uid, "fuelEntries");
+      const nextEntries = await fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries");
       setEntries(nextEntries);
 
       if (nextEntries.length > 0 && !selectedEntryID) {
@@ -74,6 +75,7 @@ export default function FuelPage() {
     if (!uid || !formState) {
       return;
     }
+    const safeUID = uid;
 
     setSaving(true);
     setStatus("");
@@ -88,7 +90,7 @@ export default function FuelPage() {
         odometer: Number(formState.odometer) || 0
       };
 
-      await saveFuelEntry(uid, payload);
+      await saveFuelEntry(safeUID, payload);
       setEntries((currentEntries) =>
         currentEntries.map((entry) =>
           entry.id === payload.id

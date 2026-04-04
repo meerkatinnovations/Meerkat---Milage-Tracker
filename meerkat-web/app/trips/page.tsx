@@ -65,9 +65,10 @@ export default function TripsPage() {
     if (!uid) {
       return;
     }
+    const safeUID = uid;
 
     async function loadTrips() {
-      const nextTrips = await fetchCollection<TripRecord>(uid, "trips");
+      const nextTrips = await fetchCollection<TripRecord>(safeUID, "trips");
       setTrips(nextTrips);
 
       if (nextTrips.length > 0 && !selectedTripID) {
@@ -95,6 +96,7 @@ export default function TripsPage() {
     if (!uid || !formState) {
       return;
     }
+    const safeUID = uid;
 
     setSaving(true);
     setStatus("");
@@ -115,7 +117,7 @@ export default function TripsPage() {
         date: formState.date ? new Date(formState.date) : new Date()
       };
 
-      await saveTrip(uid, payload);
+      await saveTrip(safeUID, payload);
       setTrips((currentTrips) =>
         currentTrips.map((trip) =>
           trip.id === payload.id
