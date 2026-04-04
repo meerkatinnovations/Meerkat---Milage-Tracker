@@ -1,8 +1,12 @@
 import { TripRecord } from "@/lib/firestore";
 
-function formatDistance(distanceMeters?: number) {
+function formatDistance(distanceMeters?: number, unitSystem?: string) {
   if (!distanceMeters) {
     return "—";
+  }
+
+  if (unitSystem === "miles") {
+    return `${(distanceMeters / 1609.344).toFixed(1)} mi`;
   }
 
   return `${(distanceMeters / 1000).toFixed(1)} km`;
@@ -20,9 +24,10 @@ type TripTableProps = {
   trips: TripRecord[];
   onSelectTrip?: (trip: TripRecord) => void;
   selectedTripID?: string;
+  unitSystem?: string;
 };
 
-export function TripTable({ trips, onSelectTrip, selectedTripID }: TripTableProps) {
+export function TripTable({ trips, onSelectTrip, selectedTripID, unitSystem }: TripTableProps) {
   if (trips.length === 0) {
     return <div className="empty-state">No trips have been synced for this account yet.</div>;
   }
@@ -57,7 +62,7 @@ export function TripTable({ trips, onSelectTrip, selectedTripID }: TripTableProp
               <td>
                 {(trip.startAddress || "—") + " → " + (trip.endAddress || "—")}
               </td>
-              <td>{formatDistance(trip.distanceMeters)}</td>
+              <td>{formatDistance(trip.distanceMeters, unitSystem)}</td>
               <td>
                 {trip.odometerStart ?? "—"} to {trip.odometerEnd ?? "—"}
               </td>

@@ -97,7 +97,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <TripTable trips={trips.slice(0, 10)} />
+          <TripTable trips={trips.slice(0, 10)} unitSystem={profile?.unitSystem} />
         </div>
       </NavShell>
     </AuthGuard>

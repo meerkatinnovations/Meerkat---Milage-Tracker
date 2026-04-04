@@ -6,9 +6,11 @@ import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
   fetchCollectionUnordered,
+  fetchUserProfile,
   FuelRecord,
   FuelUpdateInput,
-  saveFuelEntry
+  saveFuelEntry,
+  UserProfile
 } from "@/lib/firestore";
 
 type FuelFormState = {
@@ -34,6 +36,7 @@ function toFormState(entry: FuelRecord): FuelFormState {
 export default function FuelPage() {
   const { user } = useAuth();
   const uid = user?.uid;
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [entries, setEntries] = useState<FuelRecord[]>([]);
   const [selectedEntryID, setSelectedEntryID] = useState("");
   const [formState, setFormState] = useState<FuelFormState | null>(null);
@@ -47,7 +50,9 @@ export default function FuelPage() {
     const safeUID = uid;
 
     async function loadEntries() {
+      const nextProfile = await fetchUserProfile(safeUID);
       const nextEntries = await fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries");
+      setProfile(nextProfile);
       setEntries(nextEntries);
 
       if (nextEntries.length > 0 && !selectedEntryID) {
@@ -120,7 +125,7 @@ export default function FuelPage() {
         subtitle="Fuel purchase records and receipt storage references."
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 0.9fr)" }}>
-          <div className="card panel table-wrap">
+          <div className="card panel table-wrap" style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>
             <table>
               <thead>
                 <tr>
@@ -146,7 +151,7 @@ export default function FuelPage() {
                     <td>{entry.vehicleProfileName || "—"}</td>
                     <td>{entry.volume ?? "—"}</td>
                     <td>{entry.totalCost ?? "—"}</td>
-                    <td>{entry.odometer ?? "—"}</td>
+                    <td>{entry.odometer ?? "—"} {profile?.unitSystem === "miles" ? "mi" : "km"}</td>
                     <td>{entry.receiptPath ? "Stored" : "None"}</td>
                   </tr>
                 ))}
@@ -154,7 +159,7 @@ export default function FuelPage() {
             </table>
           </div>
 
-          <div className="card panel">
+          <div className="card panel" style={{ position: "sticky", top: 24, alignSelf: "start" }}>
             <strong>Edit Fuel Entry</strong>
             <p className="page-subtitle">Update station, cost, volume, and odometer.</p>
 
@@ -220,7 +225,7 @@ export default function FuelPage() {
                     </label>
 
                     <label className="field">
-                      <span>Odometer</span>
+                      <span>Odometer {profile?.unitSystem === "miles" ? "(mi)" : "(km)"}</span>
                       <input
                         className="input"
                         inputMode="decimal"

@@ -8,9 +8,11 @@ import { useAuth } from "@/components/auth-provider";
 import {
   deleteTrip,
   fetchCollection,
+  fetchUserProfile,
   saveTrip,
   TripRecord,
-  TripUpdateInput
+  TripUpdateInput,
+  UserProfile
 } from "@/lib/firestore";
 
 type TripFormState = {
@@ -36,7 +38,31 @@ function toInputDate(value?: { seconds: number }) {
   return new Date(value.seconds * 1000).toISOString().slice(0, 10);
 }
 
-function toFormState(trip: TripRecord): TripFormState {
+function distanceUnitLabel(unitSystem?: string) {
+  return unitSystem === "miles" ? "Miles" : "KM";
+}
+
+function toDisplayDistance(distanceMeters: number | undefined, unitSystem?: string) {
+  const safeDistance = distanceMeters ?? 0;
+
+  if (unitSystem === "miles") {
+    return safeDistance / 1609.344;
+  }
+
+  return safeDistance / 1000;
+}
+
+function toStoredDistance(distanceValue: string, unitSystem?: string) {
+  const parsedValue = Number(distanceValue) || 0;
+
+  if (unitSystem === "miles") {
+    return parsedValue * 1609.344;
+  }
+
+  return parsedValue * 1000;
+}
+
+function toFormState(trip: TripRecord, unitSystem?: string): TripFormState {
   return {
     id: trip.id,
     name: trip.name ?? "",
@@ -48,7 +74,7 @@ function toFormState(trip: TripRecord): TripFormState {
     details: trip.details ?? "",
     odometerStart: String(trip.odometerStart ?? 0),
     odometerEnd: String(trip.odometerEnd ?? 0),
-    distanceMeters: String(trip.distanceMeters ?? 0),
+    distanceMeters: String(toDisplayDistance(trip.distanceMeters, unitSystem)),
     date: toInputDate(trip.date)
   };
 }
@@ -56,6 +82,7 @@ function toFormState(trip: TripRecord): TripFormState {
 export default function TripsPage() {
   const { user } = useAuth();
   const uid = user?.uid;
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [selectedTripID, setSelectedTripID] = useState("");
   const [formState, setFormState] = useState<TripFormState | null>(null);
@@ -70,12 +97,14 @@ export default function TripsPage() {
     const safeUID = uid;
 
     async function loadTrips() {
+      const nextProfile = await fetchUserProfile(safeUID);
       const nextTrips = await fetchCollection<TripRecord>(safeUID, "trips");
+      setProfile(nextProfile);
       setTrips(nextTrips);
 
       if (nextTrips.length > 0 && !selectedTripID) {
         setSelectedTripID(nextTrips[0].id);
-        setFormState(toFormState(nextTrips[0]));
+        setFormState(toFormState(nextTrips[0], nextProfile?.unitSystem));
       }
     }
 
@@ -89,10 +118,10 @@ export default function TripsPage() {
 
     const selectedTrip = trips.find((entry) => entry.id === selectedTripID);
     if (selectedTrip) {
-      setFormState(toFormState(selectedTrip));
+      setFormState(toFormState(selectedTrip, profile?.unitSystem));
       setStatus("");
     }
-  }, [selectedTripID, trips]);
+  }, [profile?.unitSystem, selectedTripID, trips]);
 
   async function handleSave() {
     if (!uid || !formState) {
@@ -115,7 +144,7 @@ export default function TripsPage() {
         details: formState.details,
         odometerStart: Number(formState.odometerStart) || 0,
         odometerEnd: Number(formState.odometerEnd) || 0,
-        distanceMeters: Number(formState.distanceMeters) || 0,
+        distanceMeters: toStoredDistance(formState.distanceMeters, profile?.unitSystem),
         date: formState.date ? new Date(formState.date) : new Date()
       };
 
@@ -177,13 +206,16 @@ export default function TripsPage() {
         subtitle="Browse synced mileage trips and edit the core fields directly from the web portal."
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)" }}>
-          <TripTable
-            trips={trips}
-            selectedTripID={selectedTripID}
-            onSelectTrip={(trip) => setSelectedTripID(trip.id)}
-          />
+          <div style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>
+            <TripTable
+              trips={trips}
+              selectedTripID={selectedTripID}
+              onSelectTrip={(trip) => setSelectedTripID(trip.id)}
+              unitSystem={profile?.unitSystem}
+            />
+          </div>
 
-          <div className="card panel">
+          <div className="card panel" style={{ position: "sticky", top: 24, alignSelf: "start" }}>
             <strong>Edit Trip</strong>
             <p className="page-subtitle">Save changes back to Firestore for this account.</p>
 
@@ -324,7 +356,7 @@ export default function TripsPage() {
                     </label>
 
                     <label className="field">
-                      <span>Distance meters</span>
+                      <span>Distance {distanceUnitLabel(profile?.unitSystem)}</span>
                       <input
                         className="input"
                         inputMode="decimal"
