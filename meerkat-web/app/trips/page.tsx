@@ -6,6 +6,7 @@ import { NavShell } from "@/components/nav-shell";
 import { TripTable } from "@/components/trip-table";
 import { useAuth } from "@/components/auth-provider";
 import {
+  deleteTrip,
   fetchCollection,
   saveTrip,
   TripRecord,
@@ -60,6 +61,7 @@ export default function TripsPage() {
   const [formState, setFormState] = useState<TripFormState | null>(null);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!uid) {
@@ -137,6 +139,37 @@ export default function TripsPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!uid || !formState) {
+      return;
+    }
+    const safeUID = uid;
+
+    if (!window.confirm("Delete this trip from Firebase? This cannot be undone.")) {
+      return;
+    }
+
+    setDeleting(true);
+    setStatus("");
+
+    try {
+      await deleteTrip(safeUID, formState.id);
+
+      setTrips((currentTrips) => {
+        const nextTrips = currentTrips.filter((trip) => trip.id !== formState.id);
+        const nextSelectedTrip = nextTrips[0];
+        setSelectedTripID(nextSelectedTrip?.id ?? "");
+        setFormState(nextSelectedTrip ? toFormState(nextSelectedTrip) : null);
+        return nextTrips;
+      });
+      setStatus("Trip deleted from Firebase.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to delete trip.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <AuthGuard>
       <NavShell
@@ -144,7 +177,11 @@ export default function TripsPage() {
         subtitle="Browse synced mileage trips and edit the core fields directly from the web portal."
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)" }}>
-          <TripTable trips={trips} />
+          <TripTable
+            trips={trips}
+            selectedTripID={selectedTripID}
+            onSelectTrip={(trip) => setSelectedTripID(trip.id)}
+          />
 
           <div className="card panel">
             <strong>Edit Trip</strong>
@@ -301,9 +338,23 @@ export default function TripsPage() {
 
                   {status ? <div className="muted">{status}</div> : null}
 
-                  <button className="button" type="button" onClick={handleSave} disabled={saving}>
-                    {saving ? "Saving…" : "Save Trip"}
-                  </button>
+                  <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <button className="button" type="button" onClick={handleSave} disabled={saving || deleting}>
+                      {saving ? "Saving…" : "Save Trip"}
+                    </button>
+
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={saving || deleting}
+                      style={{
+                        background: deleting ? "rgba(174, 31, 31, 0.75)" : "#ae1f1f"
+                      }}
+                    >
+                      {deleting ? "Deleting…" : "Delete Trip"}
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="empty-state">No trip selected.</div>

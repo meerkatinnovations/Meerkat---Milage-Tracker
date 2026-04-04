@@ -41,7 +41,7 @@ export default function DashboardPage() {
       ]);
 
       setProfile(nextProfile);
-      setTrips(nextTrips.slice(0, 10));
+      setTrips(nextTrips);
       setVehicles(nextVehicles);
       setFuelEntries(nextFuel);
       setMaintenanceRecords(nextMaintenance);
@@ -97,7 +97,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <TripTable trips={trips} />
+          <TripTable trips={trips.slice(0, 10)} />
         </div>
       </NavShell>
     </AuthGuard>

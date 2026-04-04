@@ -16,7 +16,13 @@ function formatDate(input?: { seconds: number }) {
   return new Date(input.seconds * 1000).toLocaleDateString();
 }
 
-export function TripTable({ trips }: { trips: TripRecord[] }) {
+type TripTableProps = {
+  trips: TripRecord[];
+  onSelectTrip?: (trip: TripRecord) => void;
+  selectedTripID?: string;
+};
+
+export function TripTable({ trips, onSelectTrip, selectedTripID }: TripTableProps) {
   if (trips.length === 0) {
     return <div className="empty-state">No trips have been synced for this account yet.</div>;
   }
@@ -36,7 +42,15 @@ export function TripTable({ trips }: { trips: TripRecord[] }) {
         </thead>
         <tbody>
           {trips.map((trip) => (
-            <tr key={trip.id}>
+            <tr
+              key={trip.id}
+              onClick={onSelectTrip ? () => onSelectTrip(trip) : undefined}
+              style={{
+                cursor: onSelectTrip ? "pointer" : "default",
+                backgroundColor:
+                  selectedTripID === trip.id ? "rgba(242, 140, 40, 0.08)" : undefined
+              }}
+            >
               <td>{formatDate(trip.date)}</td>
               <td>{trip.name || trip.tripType || "Trip"}</td>
               <td>{trip.vehicleProfileName || "—"}</td>

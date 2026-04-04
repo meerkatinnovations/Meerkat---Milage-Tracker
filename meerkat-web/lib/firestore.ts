@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -160,6 +161,10 @@ export async function saveTrip(uid: string, trip: TripUpdateInput) {
     },
     { merge: true }
   );
+}
+
+export async function deleteTrip(uid: string, tripID: string) {
+  await deleteDoc(doc(db, "users", uid, "trips", tripID));
 }
 
 export async function saveVehicle(uid: string, vehicle: VehicleUpdateInput) {
