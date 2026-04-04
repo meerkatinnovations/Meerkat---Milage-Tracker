@@ -1,5 +1,5 @@
 import {
-  AppleAuthProvider,
+  OAuthProvider,
   sendPasswordResetEmail,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -20,7 +20,7 @@ export function resetPassword(email: string) {
 }
 
 export function loginWithApple() {
-  const provider = new AppleAuthProvider();
+  const provider = new OAuthProvider("apple.com");
   provider.addScope("email");
   provider.addScope("name");
   return signInWithPopup(auth, provider);
