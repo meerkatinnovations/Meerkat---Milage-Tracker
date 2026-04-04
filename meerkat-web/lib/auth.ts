@@ -1,5 +1,7 @@
 import {
+  AppleAuthProvider,
   sendPasswordResetEmail,
+  signInWithPopup,
   signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
@@ -15,4 +17,11 @@ export function logout() {
 
 export function resetPassword(email: string) {
   return sendPasswordResetEmail(auth, email);
+}
+
+export function loginWithApple() {
+  const provider = new AppleAuthProvider();
+  provider.addScope("email");
+  provider.addScope("name");
+  return signInWithPopup(auth, provider);
 }

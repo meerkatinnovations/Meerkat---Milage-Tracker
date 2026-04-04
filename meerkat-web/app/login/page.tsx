@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginWithEmail, resetPassword } from "@/lib/auth";
+import { loginWithApple, loginWithEmail, resetPassword } from "@/lib/auth";
 import { useAuth } from "@/components/auth-provider";
 
 export default function LoginPage() {
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [appleSubmitting, setAppleSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -48,6 +49,21 @@ export default function LoginPage() {
       setError("");
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Unable to send reset email.");
+    }
+  }
+
+  async function handleAppleSignIn() {
+    setAppleSubmitting(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await loginWithApple();
+      router.replace("/dashboard");
+    } catch (signInError) {
+      setError(signInError instanceof Error ? signInError.message : "Unable to sign in with Apple.");
+    } finally {
+      setAppleSubmitting(false);
     }
   }
 
@@ -96,6 +112,14 @@ export default function LoginPage() {
             </button>
             <button className="button secondary" type="button" onClick={handleResetPassword}>
               Reset password
+            </button>
+            <button
+              className="button ghost"
+              type="button"
+              onClick={handleAppleSignIn}
+              disabled={appleSubmitting}
+            >
+              {appleSubmitting ? "Connecting Apple…" : "Sign in with Apple"}
             </button>
           </div>
         </form>
