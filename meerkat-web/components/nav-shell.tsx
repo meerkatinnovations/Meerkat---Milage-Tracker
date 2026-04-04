@@ -37,7 +37,7 @@ export function NavShell({
     <div className="shell">
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark">M</div>
+          <img className="brand-logo" src="/meerkat-logo.png" alt="Meerkat logo" />
           <div>
             <strong>Meerkat</strong>
             <div className="muted">Customer Portal</div>
