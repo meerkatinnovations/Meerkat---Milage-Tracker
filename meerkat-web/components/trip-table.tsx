@@ -1,5 +1,9 @@
 import { TripRecord } from "@/lib/firestore";
 
+function tripSortTimestamp(trip: TripRecord) {
+  return trip.date?.seconds ?? trip.updatedAt?.seconds ?? 0;
+}
+
 function formatDistance(distanceMeters?: number, unitSystem?: string) {
   if (!distanceMeters) {
     return "—";
@@ -41,6 +45,8 @@ export function TripTable({
     return <div className="empty-state">No trips have been synced for this account yet.</div>;
   }
 
+  const sortedTrips = [...trips].sort((lhs, rhs) => tripSortTimestamp(rhs) - tripSortTimestamp(lhs));
+
   return (
     <div className="card panel table-wrap">
       <table>
@@ -56,7 +62,7 @@ export function TripTable({
           </tr>
         </thead>
         <tbody>
-          {trips.map((trip) => (
+          {sortedTrips.map((trip) => (
             <tr
               key={trip.id}
               onClick={onSelectTrip ? () => onSelectTrip(trip) : undefined}

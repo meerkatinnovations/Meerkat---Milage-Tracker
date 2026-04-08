@@ -62,6 +62,14 @@ function toStoredDistance(distanceValue: string, unitSystem?: string) {
   return parsedValue * 1000;
 }
 
+function sortTripsNewestFirst(records: TripRecord[]) {
+  return [...records].sort((lhs, rhs) => {
+    const lhsDate = lhs.date?.seconds ?? 0;
+    const rhsDate = rhs.date?.seconds ?? 0;
+    return rhsDate - lhsDate;
+  });
+}
+
 function toFormState(trip: TripRecord, unitSystem?: string): TripFormState {
   return {
     id: trip.id,
@@ -99,7 +107,7 @@ export default function TripsPage() {
 
     async function loadTrips() {
       const nextProfile = await fetchUserProfile(safeUID);
-      const nextTrips = await fetchCollection<TripRecord>(safeUID, "trips");
+      const nextTrips = sortTripsNewestFirst(await fetchCollection<TripRecord>(safeUID, "trips"));
       setProfile(nextProfile);
       setTrips(nextTrips);
       setSelectedTripIDs((currentSelectedTripIDs) =>
@@ -154,14 +162,16 @@ export default function TripsPage() {
 
       await saveTrip(safeUID, payload);
       setTrips((currentTrips) =>
-        currentTrips.map((trip) =>
-          trip.id === payload.id
-            ? {
-                ...trip,
-                ...payload,
-                date: { seconds: Math.floor(payload.date.getTime() / 1000) }
-              }
-            : trip
+        sortTripsNewestFirst(
+          currentTrips.map((trip) =>
+            trip.id === payload.id
+              ? {
+                  ...trip,
+                  ...payload,
+                  date: { seconds: Math.floor(payload.date.getTime() / 1000) }
+                }
+              : trip
+          )
         )
       );
       setStatus("Trip saved to Firebase.");

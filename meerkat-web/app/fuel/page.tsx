@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
-  fetchCollectionUnordered,
+  fetchCollection,
   fetchUserProfile,
   FuelRecord,
   FuelUpdateInput,
@@ -51,7 +51,7 @@ export default function FuelPage() {
 
     async function loadEntries() {
       const nextProfile = await fetchUserProfile(safeUID);
-      const nextEntries = await fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries");
+      const nextEntries = await fetchCollection<FuelRecord>(safeUID, "fuelEntries");
       setProfile(nextProfile);
       setEntries(nextEntries);
 

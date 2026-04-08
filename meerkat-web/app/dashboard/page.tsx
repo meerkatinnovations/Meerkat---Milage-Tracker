@@ -5,7 +5,6 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import {
   fetchCollection,
-  fetchCollectionUnordered,
   fetchUserProfile,
   FuelRecord,
   MaintenanceRecord,
@@ -15,6 +14,14 @@ import {
 } from "@/lib/firestore";
 import { useAuth } from "@/components/auth-provider";
 import { TripTable } from "@/components/trip-table";
+
+function sortTripsNewestFirst(records: TripRecord[]) {
+  return [...records].sort((lhs, rhs) => {
+    const lhsDate = lhs.date?.seconds ?? 0;
+    const rhsDate = rhs.date?.seconds ?? 0;
+    return rhsDate - lhsDate;
+  });
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -35,13 +42,13 @@ export default function DashboardPage() {
       const [nextProfile, nextTrips, nextVehicles, nextFuel, nextMaintenance] = await Promise.all([
         fetchUserProfile(safeUID),
         fetchCollection<TripRecord>(safeUID, "trips"),
-        fetchCollectionUnordered<VehicleRecord>(safeUID, "vehicles"),
-        fetchCollectionUnordered<FuelRecord>(safeUID, "fuelEntries"),
-        fetchCollectionUnordered<MaintenanceRecord>(safeUID, "maintenanceRecords")
+        fetchCollection<VehicleRecord>(safeUID, "vehicles"),
+        fetchCollection<FuelRecord>(safeUID, "fuelEntries"),
+        fetchCollection<MaintenanceRecord>(safeUID, "maintenanceRecords")
       ]);
 
       setProfile(nextProfile);
-      setTrips(nextTrips);
+      setTrips(sortTripsNewestFirst(nextTrips));
       setVehicles(nextVehicles);
       setFuelEntries(nextFuel);
       setMaintenanceRecords(nextMaintenance);
@@ -96,7 +103,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-
           <TripTable trips={trips.slice(0, 10)} unitSystem={profile?.unitSystem} />
         </div>
       </NavShell>

@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
-  fetchCollectionUnordered,
+  fetchCollection,
   MaintenanceRecord,
   MaintenanceUpdateInput,
   saveMaintenanceRecord
@@ -55,7 +55,7 @@ export default function MaintenancePage() {
     const safeUID = uid;
 
     async function loadRecords() {
-      const nextRecords = await fetchCollectionUnordered<MaintenanceRecord>(safeUID, "maintenanceRecords");
+      const nextRecords = await fetchCollection<MaintenanceRecord>(safeUID, "maintenanceRecords");
       setRecords(nextRecords);
 
       if (nextRecords.length > 0 && !selectedRecordID) {
