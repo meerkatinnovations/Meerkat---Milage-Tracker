@@ -22,6 +22,17 @@ type FuelFormState = {
   odometer: string;
 };
 
+function formatNumber(value?: number, maximumFractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits
+  }).format(value);
+}
+
 function toFormState(entry: FuelRecord): FuelFormState {
   return {
     id: entry.id,
@@ -149,9 +160,9 @@ export default function FuelPage() {
                   >
                     <td>{entry.station || "—"}</td>
                     <td>{entry.vehicleProfileName || "—"}</td>
-                    <td>{entry.volume ?? "—"}</td>
-                    <td>{entry.totalCost ?? "—"}</td>
-                    <td>{entry.odometer ?? "—"} {profile?.unitSystem === "miles" ? "mi" : "km"}</td>
+                    <td>{formatNumber(entry.volume, 3)}</td>
+                    <td>{formatNumber(entry.totalCost, 2)}</td>
+                    <td>{formatNumber(entry.odometer)} {profile?.unitSystem === "miles" ? "mi" : "km"}</td>
                     <td>{entry.receiptPath ? "Stored" : "None"}</td>
                   </tr>
                 ))}

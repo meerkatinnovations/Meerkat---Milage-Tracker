@@ -11,6 +11,17 @@ import {
   VehicleUpdateInput
 } from "@/lib/firestore";
 
+function formatNumber(value?: number, maximumFractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits
+  }).format(value);
+}
+
 type VehicleFormState = {
   id: string;
   profileName: string;
@@ -149,7 +160,7 @@ export default function VehiclesPage() {
                     {[vehicle.make, vehicle.model].filter(Boolean).join(" ")} • {vehicle.numberPlate || "No plate"}
                   </p>
                   <div style={{ marginTop: 12 }}>
-                    Starting odometer: {vehicle.startingOdometerReading ?? "—"}
+                    Starting odometer: {formatNumber(vehicle.startingOdometerReading)}
                   </div>
                   <div className="muted" style={{ marginTop: 8 }}>
                     {vehicle.archived ? "Archived" : "Active"}

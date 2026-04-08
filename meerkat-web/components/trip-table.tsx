@@ -4,6 +4,17 @@ function tripSortTimestamp(trip: TripRecord) {
   return trip.date?.seconds ?? trip.updatedAt?.seconds ?? 0;
 }
 
+function formatNumber(value?: number, maximumFractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits
+  }).format(value);
+}
+
 function formatDistance(distanceMeters?: number, unitSystem?: string) {
   if (!distanceMeters) {
     return "—";
@@ -90,7 +101,7 @@ export function TripTable({
               </td>
               <td>{formatDistance(trip.distanceMeters, unitSystem)}</td>
               <td>
-                {trip.odometerStart ?? "—"} to {trip.odometerEnd ?? "—"}
+                {formatNumber(trip.odometerStart)} to {formatNumber(trip.odometerEnd)}
               </td>
             </tr>
           ))}

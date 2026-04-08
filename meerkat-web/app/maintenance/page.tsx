@@ -24,6 +24,17 @@ type MaintenanceFormState = {
   nextServiceOdometer: string;
 };
 
+function formatNumber(value?: number, maximumFractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits
+  }).format(value);
+}
+
 function toFormState(record: MaintenanceRecord): MaintenanceFormState {
   return {
     id: record.id,
@@ -158,8 +169,8 @@ export default function MaintenancePage() {
                   <p className="page-subtitle">
                     {record.shopName || "Unknown shop"} • {record.vehicleProfileName || "Unknown vehicle"}
                   </p>
-                  <div style={{ marginTop: 12 }}>Cost: {record.totalCost ?? "—"}</div>
-                  <div style={{ marginTop: 6 }}>Odometer: {record.odometer ?? "—"}</div>
+                  <div style={{ marginTop: 12 }}>Cost: {formatNumber(record.totalCost, 2)}</div>
+                  <div style={{ marginTop: 6 }}>Odometer: {formatNumber(record.odometer)}</div>
                   <div className="muted" style={{ marginTop: 8 }}>
                     {record.receiptPath ? "Receipt in Firebase Storage" : "No receipt"}
                   </div>
