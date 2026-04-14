@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
-  fetchCollection,
+  fetchScopedCollection,
   fetchUserProfile,
   FuelRecord,
   FuelUpdateInput,
@@ -15,6 +15,7 @@ import {
 
 type FuelFormState = {
   id: string;
+  ownerUID?: string;
   station: string;
   vehicleProfileName: string;
   volume: string;
@@ -36,6 +37,7 @@ function formatNumber(value?: number, maximumFractionDigits = 2) {
 function toFormState(entry: FuelRecord): FuelFormState {
   return {
     id: entry.id,
+    ownerUID: entry.ownerUID,
     station: entry.station ?? "",
     vehicleProfileName: entry.vehicleProfileName ?? "",
     volume: String(entry.volume ?? 0),
@@ -45,7 +47,7 @@ function toFormState(entry: FuelRecord): FuelFormState {
 }
 
 export default function FuelPage() {
-  const { user } = useAuth();
+  const { user, organizationContext } = useAuth();
   const uid = user?.uid;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [entries, setEntries] = useState<FuelRecord[]>([]);
@@ -62,7 +64,7 @@ export default function FuelPage() {
 
     async function loadEntries() {
       const nextProfile = await fetchUserProfile(safeUID);
-      const nextEntries = await fetchCollection<FuelRecord>(safeUID, "fuelEntries");
+      const nextEntries = await fetchScopedCollection<FuelRecord>(safeUID, organizationContext, "fuelEntries");
       setProfile(nextProfile);
       setEntries(nextEntries);
 
@@ -73,7 +75,7 @@ export default function FuelPage() {
     }
 
     void loadEntries();
-  }, [selectedEntryID, uid]);
+  }, [organizationContext, selectedEntryID, uid]);
 
   useEffect(() => {
     if (!selectedEntryID) {
@@ -106,7 +108,7 @@ export default function FuelPage() {
         odometer: Number(formState.odometer) || 0
       };
 
-      await saveFuelEntry(safeUID, payload);
+      await saveFuelEntry(formState.ownerUID || safeUID, payload);
       setEntries((currentEntries) =>
         currentEntries.map((entry) =>
           entry.id === payload.id
@@ -133,7 +135,9 @@ export default function FuelPage() {
     <AuthGuard>
       <NavShell
         title="Fuel"
-        subtitle="Fuel purchase records and receipt storage references."
+        subtitle={organizationContext?.membership.role === "accountManager"
+          ? "Fuel purchase records across active employees."
+          : "Fuel purchase records and receipt storage references."}
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 0.9fr)" }}>
           <div className="card panel table-wrap" style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>

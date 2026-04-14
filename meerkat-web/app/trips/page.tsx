@@ -7,7 +7,7 @@ import { TripTable } from "@/components/trip-table";
 import { useAuth } from "@/components/auth-provider";
 import {
   deleteTrip,
-  fetchCollection,
+  fetchScopedCollection,
   fetchUserProfile,
   saveTrip,
   TripRecord,
@@ -17,6 +17,7 @@ import {
 
 type TripFormState = {
   id: string;
+  ownerUID?: string;
   name: string;
   tripType: string;
   vehicleProfileName: string;
@@ -73,6 +74,7 @@ function sortTripsNewestFirst(records: TripRecord[]) {
 function toFormState(trip: TripRecord, unitSystem?: string): TripFormState {
   return {
     id: trip.id,
+    ownerUID: trip.ownerUID,
     name: trip.name ?? "",
     tripType: trip.tripType ?? "business",
     vehicleProfileName: trip.vehicleProfileName ?? "",
@@ -88,7 +90,7 @@ function toFormState(trip: TripRecord, unitSystem?: string): TripFormState {
 }
 
 export default function TripsPage() {
-  const { user } = useAuth();
+  const { user, organizationContext } = useAuth();
   const uid = user?.uid;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trips, setTrips] = useState<TripRecord[]>([]);
@@ -107,7 +109,9 @@ export default function TripsPage() {
 
     async function loadTrips() {
       const nextProfile = await fetchUserProfile(safeUID);
-      const nextTrips = sortTripsNewestFirst(await fetchCollection<TripRecord>(safeUID, "trips"));
+      const nextTrips = sortTripsNewestFirst(
+        await fetchScopedCollection<TripRecord>(safeUID, organizationContext, "trips")
+      );
       setProfile(nextProfile);
       setTrips(nextTrips);
       setSelectedTripIDs((currentSelectedTripIDs) =>
@@ -121,7 +125,7 @@ export default function TripsPage() {
     }
 
     void loadTrips();
-  }, [selectedTripID, uid]);
+  }, [organizationContext, selectedTripID, uid]);
 
   useEffect(() => {
     if (!selectedTripID) {
@@ -160,7 +164,7 @@ export default function TripsPage() {
         date: formState.date ? new Date(formState.date) : new Date()
       };
 
-      await saveTrip(safeUID, payload);
+      await saveTrip(formState.ownerUID || safeUID, payload);
       setTrips((currentTrips) =>
         sortTripsNewestFirst(
           currentTrips.map((trip) =>
@@ -196,7 +200,7 @@ export default function TripsPage() {
     setStatus("");
 
     try {
-      await deleteTrip(safeUID, formState.id);
+      await deleteTrip(formState.ownerUID || safeUID, formState.id);
 
       setTrips((currentTrips) => {
         const nextTrips = currentTrips.filter((trip) => trip.id !== formState.id);
@@ -228,7 +232,12 @@ export default function TripsPage() {
     setStatus("");
 
     try {
-      await Promise.all(tripIDsToDelete.map((tripID) => deleteTrip(safeUID, tripID)));
+      await Promise.all(
+        tripIDsToDelete.map((tripID) => {
+          const record = trips.find((trip) => trip.id === tripID);
+          return deleteTrip(record?.ownerUID || safeUID, tripID);
+        })
+      );
 
       setTrips((currentTrips) => {
         const nextTrips = currentTrips.filter((trip) => !tripIDsToDelete.includes(trip.id));
@@ -272,7 +281,9 @@ export default function TripsPage() {
     <AuthGuard>
       <NavShell
         title="Trips"
-        subtitle="Browse synced mileage trips and edit the core fields directly from the web portal."
+        subtitle={organizationContext?.membership.role === "accountManager"
+          ? "Browse and edit trips across active employees in this organization."
+          : "Browse synced mileage trips and edit the core fields directly from the web portal."}
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)" }}>
           <div style={{ maxHeight: "calc(100vh - 220px)", overflowY: "auto" }}>
@@ -319,7 +330,11 @@ export default function TripsPage() {
 
           <div className="card panel" style={{ position: "sticky", top: 24, alignSelf: "start" }}>
             <strong>Edit Trip</strong>
-            <p className="page-subtitle">Save changes back to Firestore for this account.</p>
+            <p className="page-subtitle">
+              {organizationContext?.membership.role === "accountManager"
+                ? "Save changes back to the employee account that owns this trip."
+                : "Save changes back to Firestore for this account."}
+            </p>
 
             <div className="form-grid" style={{ marginTop: 16 }}>
               <label className="field">

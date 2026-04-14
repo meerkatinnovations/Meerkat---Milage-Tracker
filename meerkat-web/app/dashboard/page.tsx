@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import {
-  fetchCollection,
+  fetchScopedCollection,
   fetchUserProfile,
   FuelRecord,
   MaintenanceRecord,
@@ -24,7 +24,7 @@ function sortTripsNewestFirst(records: TripRecord[]) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, organizationContext } = useAuth();
   const uid = user?.uid;
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [trips, setTrips] = useState<TripRecord[]>([]);
@@ -41,10 +41,10 @@ export default function DashboardPage() {
     async function load() {
       const [nextProfile, nextTrips, nextVehicles, nextFuel, nextMaintenance] = await Promise.all([
         fetchUserProfile(safeUID),
-        fetchCollection<TripRecord>(safeUID, "trips"),
-        fetchCollection<VehicleRecord>(safeUID, "vehicles"),
-        fetchCollection<FuelRecord>(safeUID, "fuelEntries"),
-        fetchCollection<MaintenanceRecord>(safeUID, "maintenanceRecords")
+        fetchScopedCollection<TripRecord>(safeUID, organizationContext, "trips"),
+        fetchScopedCollection<VehicleRecord>(safeUID, organizationContext, "vehicles"),
+        fetchScopedCollection<FuelRecord>(safeUID, organizationContext, "fuelEntries"),
+        fetchScopedCollection<MaintenanceRecord>(safeUID, organizationContext, "maintenanceRecords")
       ]);
 
       setProfile(nextProfile);
@@ -55,13 +55,15 @@ export default function DashboardPage() {
     }
 
     void load();
-  }, [uid]);
+  }, [organizationContext, uid]);
 
   return (
     <AuthGuard>
       <NavShell
         title="Dashboard"
-        subtitle="Review the same account data that is synced from the mobile app."
+        subtitle={organizationContext?.membership.role === "accountManager"
+          ? "Review trips and records across all active employees in this organization."
+          : "Review the same account data that is synced from the mobile app."}
       >
         <div className="grid stats">
           <div className="card panel">
@@ -86,7 +88,9 @@ export default function DashboardPage() {
           <div className="card panel">
             <strong>Account Profile</strong>
             <p className="page-subtitle">
-              {profile?.displayName || user?.email || "Signed-in account"}
+              {organizationContext?.membership.role === "accountManager"
+                ? `${organizationContext.organization.name} Manager`
+                : profile?.displayName || user?.email || "Signed-in account"}
             </p>
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", marginTop: 14 }}>
               <div>
