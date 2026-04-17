@@ -4,8 +4,8 @@ import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Meerkat - Milage Tracker for Business",
-  description: "Manage trips, vehicles, drivers, fuel, maintenance, and exports in the business web portal.",
+  title: "Meerkat Customer Portal",
+  description: "Manage trips, vehicles, fuel, maintenance, and exports online.",
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",

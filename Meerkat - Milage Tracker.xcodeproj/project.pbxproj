@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FC3484F92F802F0D00AD28CA /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484F82F802F0D00AD28CA /* FirebaseAuth */; };
+		FC3484FB2F802F0D00AD28CA /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484FA2F802F0D00AD28CA /* FirebaseCore */; };
+		FC3484FF2F802F0D00AD28CA /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484FE2F802F0D00AD28CA /* FirebaseFirestore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		FCA504A02F67989A006EA397 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,14 +30,44 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FC5C07CA2F68E00600A7E7A7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FC69A6922F68A2520064EF64 /* Meerkat - Milage Tracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Meerkat - Milage Tracker.entitlements"; sourceTree = "<group>"; };
+		FC81B5672F8EA6D900A369EA /* firebase.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = firebase.json; sourceTree = "<group>"; };
+		FC81B5682F8EA6D900A369EA /* firestore.indexes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = firestore.indexes.json; sourceTree = "<group>"; };
+		FC81B5692F8EA6D900A369EA /* package.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = package.json; sourceTree = "<group>"; };
+		FC81B56A2F8EA6D900A369EA /* tsconfig.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tsconfig.json; sourceTree = "<group>"; };
+		FC81B56B2F8EA70200A369EA /* firestore.rules */ = {isa = PBXFileReference; lastKnownFileType = text; path = firestore.rules; sourceTree = "<group>"; };
+		FC81B56C2F8EA70200A369EA /* index.ts */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.typescript; path = index.ts; sourceTree = "<group>"; };
+		FC81B56D2F8EA70200A369EA /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		FCA504902F679899006EA397 /* Meerkat - Milage Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Meerkat - Milage Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCA5049F2F67989A006EA397 /* Meerkat - Milage TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Meerkat - Milage TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCA504A92F67989A006EA397 /* Meerkat - Milage TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Meerkat - Milage TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FC3484EA2F801B2400AD28CA /* Exceptions for "Meerkat - Milage Tracker" folder in "Meerkat - Milage TrackerTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = FCA5049E2F67989A006EA397 /* Meerkat - Milage TrackerTests */;
+		};
+		FC3484EB2F801B2400AD28CA /* Exceptions for "Meerkat - Milage Tracker" folder in "Meerkat - Milage TrackerUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = FCA504A82F67989A006EA397 /* Meerkat - Milage TrackerUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FCA504922F679899006EA397 /* Meerkat - Milage Tracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FC3484EA2F801B2400AD28CA /* Exceptions for "Meerkat - Milage Tracker" folder in "Meerkat - Milage TrackerTests" target */,
+				FC3484EB2F801B2400AD28CA /* Exceptions for "Meerkat - Milage Tracker" folder in "Meerkat - Milage TrackerUITests" target */,
+			);
 			path = "Meerkat - Milage Tracker";
 			sourceTree = "<group>";
 		};
@@ -52,6 +88,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC3484F92F802F0D00AD28CA /* FirebaseAuth in Frameworks */,
+				FC3484FB2F802F0D00AD28CA /* FirebaseCore in Frameworks */,
+				FC3484FF2F802F0D00AD28CA /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,6 +111,51 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		FC3484F72F802F0D00AD28CA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		FC81B5632F8EA69D00A369EA /* backend */ = {
+			isa = PBXGroup;
+			children = (
+				FC81B5642F8EA69E00A369EA /* firebase */,
+			);
+			path = backend;
+			sourceTree = "<group>";
+		};
+		FC81B5642F8EA69E00A369EA /* firebase */ = {
+			isa = PBXGroup;
+			children = (
+				FC81B5652F8EA69E00A369EA /* functions */,
+				FC81B5672F8EA6D900A369EA /* firebase.json */,
+				FC81B5682F8EA6D900A369EA /* firestore.indexes.json */,
+				FC81B56B2F8EA70200A369EA /* firestore.rules */,
+				FC81B56D2F8EA70200A369EA /* README.md */,
+			);
+			path = firebase;
+			sourceTree = "<group>";
+		};
+		FC81B5652F8EA69E00A369EA /* functions */ = {
+			isa = PBXGroup;
+			children = (
+				FC81B5662F8EA69E00A369EA /* src */,
+				FC81B5692F8EA6D900A369EA /* package.json */,
+				FC81B56A2F8EA6D900A369EA /* tsconfig.json */,
+			);
+			path = functions;
+			sourceTree = "<group>";
+		};
+		FC81B5662F8EA69E00A369EA /* src */ = {
+			isa = PBXGroup;
+			children = (
+				FC81B56C2F8EA70200A369EA /* index.ts */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
 		FCA504872F679899006EA397 = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +163,10 @@
 				FCA504A22F67989A006EA397 /* Meerkat - Milage TrackerTests */,
 				FCA504AC2F67989A006EA397 /* Meerkat - Milage TrackerUITests */,
 				FCA504912F679899006EA397 /* Products */,
+				FC69A6922F68A2520064EF64 /* Meerkat - Milage Tracker.entitlements */,
+				FC5C07CA2F68E00600A7E7A7 /* Info.plist */,
+				FC3484F72F802F0D00AD28CA /* Frameworks */,
+				FC81B5632F8EA69D00A369EA /* backend */,
 			);
 			sourceTree = "<group>";
 		};
@@ -112,6 +200,9 @@
 			);
 			name = "Meerkat - Milage Tracker";
 			packageProductDependencies = (
+				FC3484F82F802F0D00AD28CA /* FirebaseAuth */,
+				FC3484FA2F802F0D00AD28CA /* FirebaseCore */,
+				FC3484FE2F802F0D00AD28CA /* FirebaseFirestore */,
 			);
 			productName = "Meerkat - Milage Tracker";
 			productReference = FCA504902F679899006EA397 /* Meerkat - Milage Tracker.app */;
@@ -172,6 +263,7 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
+				ORGANIZATIONNAME = "Meerkat Innovations";
 				TargetAttributes = {
 					FCA5048F2F679899006EA397 = {
 						CreatedOnToolsVersion = 26.3;
@@ -195,6 +287,9 @@
 			);
 			mainGroup = FCA504872F679899006EA397;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FC3484EC2F8023D000AD28CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FCA504912F679899006EA397 /* Products */;
 			projectDirPath = "";
@@ -302,6 +397,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = "Meerkat - Milage Tracker.entitlements";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
@@ -366,6 +462,7 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = "Meerkat - Milage Tracker.entitlements";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
@@ -395,24 +492,29 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Meerkat - Milage Tracker.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Meerkat Innovations";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -427,24 +529,29 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Meerkat - Milage Tracker.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Meerkat Innovations";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -458,14 +565,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-TrackerTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -480,14 +590,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-TrackerTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -501,13 +614,15 @@
 		FCA504BA2F67989A006EA397 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-TrackerUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -521,13 +636,15 @@
 		FCA504BB2F67989A006EA397 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D22LQZ6TBY;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-TrackerUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -578,6 +695,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FC3484EC2F8023D000AD28CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.11.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FC3484F82F802F0D00AD28CA /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FC3484EC2F8023D000AD28CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		FC3484FA2F802F0D00AD28CA /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FC3484EC2F8023D000AD28CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		FC3484FE2F802F0D00AD28CA /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FC3484EC2F8023D000AD28CA /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FCA504882F679899006EA397 /* Project object */;
 }

@@ -1,36 +1,29 @@
-//___FILEHEADER___
-
 import XCTest
 
-final class ___FILEBASENAMEASIDENTIFIER___: XCTestCase {
-
+final class MeerkatMilageTrackerUITests: XCTestCase {
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testTabsExist() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-    }
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+        let tripsTab = app.tabBars.buttons["Trips"]
+        if tripsTab.waitForExistence(timeout: 2) {
+            XCTAssertTrue(app.tabBars.buttons["Fuel"].exists)
+            XCTAssertTrue(app.tabBars.buttons["Maintenance"].exists)
+            XCTAssertTrue(app.tabBars.buttons["Logs"].exists)
+            XCTAssertTrue(app.tabBars.buttons["Settings"].exists)
+            return
         }
+
+        XCTAssertTrue(
+            app.buttons["Continue To Subscription"].waitForExistence(timeout: 2) ||
+            app.buttons["Unlock with Face ID"].waitForExistence(timeout: 2) ||
+            app.buttons["Unlock with Touch ID"].waitForExistence(timeout: 2),
+            "Expected either the main tab bar or an initial access screen."
+        )
     }
 }

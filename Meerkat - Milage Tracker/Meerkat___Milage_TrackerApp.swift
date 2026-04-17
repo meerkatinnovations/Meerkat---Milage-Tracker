@@ -1,27 +1,26 @@
-//___FILEHEADER___
-
 import SwiftUI
-import SwiftData
+#if canImport(FirebaseCore)
+import FirebaseCore
+#endif
 
 @main
-struct ___PACKAGENAME:identifier___App: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+struct MeerkatMilageTrackerApp: App {
+    @UIApplicationDelegateAdaptor(MeerkatAppDelegate.self) private var appDelegate
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+    init() {
+        #if canImport(FirebaseCore)
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
         }
-    }()
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    SharedAppModel.shared.handleIncomingURL(url)
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }

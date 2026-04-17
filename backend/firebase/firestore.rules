@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isOwner(resourceData) {
+      return signedIn() && resourceData.ownerUID == request.auth.uid;
+    }
+
+    // Private user root and all nested app data.
+    match /users/{uid} {
+      allow read, write: if isSelf(uid);
+
+      match /{document=**} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // Organization root. Owner is stamped by the app sync layer.
+    match /organizations/{organizationID} {
+      allow create: if signedIn() && request.resource.data.ownerUID == request.auth.uid;
+      allow read, update, delete: if isOwner(resource.data);
+
+      // Strict owner-only organization data access by default.
+      // Expand this with membership-based checks when you wire invite acceptance.
+      match /{collection}/{docID} {
+        allow read, write: if isOwner(get(/databases/$(database)/documents/organizations/$(organizationID)).data);
+      }
+    }
+  }
+}

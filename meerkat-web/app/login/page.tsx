@@ -70,9 +70,9 @@ export default function LoginPage() {
   return (
     <div className="login-shell">
       <div className="card panel login-card">
-        <div className="tag">Meerkat - Milage Tracker for Business</div>
+        <div className="tag">Meerkat Portal</div>
         <h1 className="page-title" style={{ fontSize: "2.7rem", marginTop: 16 }}>
-          Sign in to manage business fleet data
+          Sign in to manage your fleet data
         </h1>
         <p className="page-subtitle">
           Use the same Firebase-backed account you use in the mobile app.

@@ -2,50 +2,97 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>$(MARKETING_VERSION)</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>Allow camera access to scan fuel receipts.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Meerkat uses your location to keep recording and auto-start trips while you drive, even when the app is in the background.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Meerkat uses your location to calculate trip mileage while you drive.</string>
-    <key>UIApplicationSupportsIndirectInputEvents</key>
-    <true/>
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>location</string>
-    </array>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.miletracker.app.Meerkat---Milage-Tracker</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>meerkat-mileage-tracker</string>
+				</array>
+			</dict>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>google-signin</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.118756369287-0km4imcomim37qfdc85nm8utq4ogsb1g</string>
+				</array>
+			</dict>
+		</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow camera access to scan fuel receipts.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allow Bluetooth access to detect configured vehicle beacons and auto-select the correct vehicle for trip recording.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to unlock your stored mileage data securely.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Meerkat uses your location to keep recording and auto-start trips while you drive, even when the app is in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Meerkat uses your location to calculate trip mileage while you drive.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Meerkat uses Motion &amp; Fitness activity to improve driving detection and auto-start trips while the app is running or relaunched in the background.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>CPTemplateApplicationScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>CarPlay Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).MeerkatCarPlaySceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>bluetooth-central</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 </dict>
 </plist>

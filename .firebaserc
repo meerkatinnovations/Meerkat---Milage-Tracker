@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "prod": "meerkat--milage-tracker",
+    "default": "meerkat--milage-tracker"
+  },
+  "targets": {},
+  "etags": {}
+}

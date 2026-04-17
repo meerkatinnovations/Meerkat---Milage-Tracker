@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
-  fetchScopedCollection,
+  fetchCollection,
   MaintenanceRecord,
   MaintenanceUpdateInput,
   saveMaintenanceRecord
@@ -13,7 +13,6 @@ import {
 
 type MaintenanceFormState = {
   id: string;
-  ownerUID?: string;
   shopName: string;
   vehicleProfileName: string;
   type: string;
@@ -39,7 +38,6 @@ function formatNumber(value?: number, maximumFractionDigits = 2) {
 function toFormState(record: MaintenanceRecord): MaintenanceFormState {
   return {
     id: record.id,
-    ownerUID: record.ownerUID,
     shopName: record.shopName ?? "",
     vehicleProfileName: record.vehicleProfileName ?? "",
     type: record.type ?? "Oil Change",
@@ -53,7 +51,7 @@ function toFormState(record: MaintenanceRecord): MaintenanceFormState {
 }
 
 export default function MaintenancePage() {
-  const { user, organizationContext } = useAuth();
+  const { user } = useAuth();
   const uid = user?.uid;
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [selectedRecordID, setSelectedRecordID] = useState("");
@@ -68,7 +66,7 @@ export default function MaintenancePage() {
     const safeUID = uid;
 
     async function loadRecords() {
-      const nextRecords = await fetchScopedCollection<MaintenanceRecord>(safeUID, organizationContext, "maintenanceRecords");
+      const nextRecords = await fetchCollection<MaintenanceRecord>(safeUID, "maintenanceRecords");
       setRecords(nextRecords);
 
       if (nextRecords.length > 0 && !selectedRecordID) {
@@ -78,7 +76,7 @@ export default function MaintenancePage() {
     }
 
     void loadRecords();
-  }, [organizationContext, selectedRecordID, uid]);
+  }, [selectedRecordID, uid]);
 
   useEffect(() => {
     if (!selectedRecordID) {
@@ -117,7 +115,7 @@ export default function MaintenancePage() {
           : undefined
       };
 
-      await saveMaintenanceRecord(formState.ownerUID || safeUID, payload);
+      await saveMaintenanceRecord(safeUID, payload);
       setRecords((currentRecords) =>
         currentRecords.map((record) =>
           record.id === payload.id
@@ -148,9 +146,7 @@ export default function MaintenancePage() {
     <AuthGuard>
       <NavShell
         title="Maintenance"
-        subtitle={organizationContext?.membership.role === "accountManager"
-          ? "Service history across active employees in this organization."
-          : "Service history synced from Meerkat and editable from the customer portal."}
+        subtitle="Service history synced from Meerkat and editable from the customer portal."
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 0.9fr)" }}>
           <div className="grid">

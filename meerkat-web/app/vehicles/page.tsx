@@ -5,7 +5,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { NavShell } from "@/components/nav-shell";
 import { useAuth } from "@/components/auth-provider";
 import {
-  fetchScopedCollection,
+  fetchCollectionUnordered,
   saveVehicle,
   VehicleRecord,
   VehicleUpdateInput
@@ -47,7 +47,7 @@ function toFormState(vehicle: VehicleRecord): VehicleFormState {
 }
 
 export default function VehiclesPage() {
-  const { user, organizationContext } = useAuth();
+  const { user } = useAuth();
   const uid = user?.uid;
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [selectedVehicleID, setSelectedVehicleID] = useState("");
@@ -62,7 +62,7 @@ export default function VehiclesPage() {
     const safeUID = uid;
 
     async function loadVehicles() {
-      const nextVehicles = await fetchScopedCollection<VehicleRecord>(safeUID, organizationContext, "vehicles");
+      const nextVehicles = await fetchCollectionUnordered<VehicleRecord>(safeUID, "vehicles");
       setVehicles(nextVehicles);
 
       if (nextVehicles.length > 0 && !selectedVehicleID) {
@@ -72,7 +72,7 @@ export default function VehiclesPage() {
     }
 
     void loadVehicles();
-  }, [organizationContext, selectedVehicleID, uid]);
+  }, [selectedVehicleID, uid]);
 
   useEffect(() => {
     if (!selectedVehicleID) {
@@ -136,9 +136,7 @@ export default function VehiclesPage() {
     <AuthGuard>
       <NavShell
         title="Vehicles"
-        subtitle={organizationContext?.membership.role === "accountManager"
-          ? "Shared vehicle profiles across this organization."
-          : "Vehicle profiles synced from the mobile app and editable on the web."}
+        subtitle="Vehicle profiles synced from the mobile app and editable on the web."
       >
         <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 0.9fr)" }}>
           <div className="grid">

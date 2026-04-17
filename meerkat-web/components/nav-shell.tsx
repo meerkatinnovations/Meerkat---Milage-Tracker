@@ -8,7 +8,6 @@ import { useAuth } from "@/components/auth-provider";
 
 const navigation = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/organization", label: "Organization" },
   { href: "/trips", label: "Trips" },
   { href: "/vehicles", label: "Vehicles" },
   { href: "/fuel", label: "Fuel" },
@@ -27,7 +26,7 @@ export function NavShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, organizationContext, isBusinessUser } = useAuth();
+  const { user } = useAuth();
 
   async function handleSignOut() {
     await logout();
@@ -40,10 +39,8 @@ export function NavShell({
         <div className="brand-lockup">
           <img className="brand-logo" src="/meerkat-logo.jpeg" alt="Meerkat logo" />
           <div>
-            <strong>Meerkat - Milage Tracker</strong>
-            <div className="muted">
-              {isBusinessUser ? "for Business" : "Customer Portal"}
-            </div>
+            <strong>Meerkat</strong>
+            <div className="muted">Customer Portal</div>
           </div>
         </div>
 
@@ -66,18 +63,6 @@ export function NavShell({
           </div>
         </div>
 
-        {organizationContext ? (
-          <div style={{ marginTop: 18 }} className="muted">
-            Organization
-            <div style={{ color: "var(--text)", marginTop: 6 }}>
-              {organizationContext.organization.name}
-            </div>
-            <div style={{ marginTop: 4 }}>
-              {organizationContext.membership.role === "accountManager" ? "Account Manager" : "Employee / Driver"}
-            </div>
-          </div>
-        ) : null}
-
         <button className="button ghost" style={{ marginTop: 18 }} onClick={handleSignOut}>
           Sign out
         </button>
@@ -89,11 +74,7 @@ export function NavShell({
             <h1 className="page-title">{title}</h1>
             <p className="page-subtitle">{subtitle}</p>
           </div>
-          <div className="tag">
-            {isBusinessUser
-              ? "Meerkat - Milage Tracker for Business"
-              : "app.meerkatinnovations.ca"}
-          </div>
+          <div className="tag">app.meerkatinnovations.ca</div>
         </div>
         {children}
       </main>
