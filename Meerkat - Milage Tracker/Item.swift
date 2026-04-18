@@ -12,6 +12,7 @@ import Compression
 import CryptoKit
 import Foundation
 import AuthenticationServices
+import AVFAudio
 import CarPlay
 import CloudKit
 import LocalAuthentication
@@ -452,6 +453,7 @@ nonisolated struct BusinessAccountProfile: Codable, Equatable {
 
 nonisolated enum VehicleConnectionSource: String, CaseIterable, Identifiable, Codable, Equatable {
     case carPlay
+    case audioRoute
     case bluetoothPeripheral
 
     var id: String { rawValue }
@@ -460,6 +462,8 @@ nonisolated enum VehicleConnectionSource: String, CaseIterable, Identifiable, Co
         switch self {
         case .carPlay:
             return "CarPlay"
+        case .audioRoute:
+            return "Connected Car Audio"
         case .bluetoothPeripheral:
             return "Bluetooth Peripheral / Beacon"
         }
@@ -467,25 +471,66 @@ nonisolated enum VehicleConnectionSource: String, CaseIterable, Identifiable, Co
 }
 
 nonisolated struct VehicleDetectionProfile: Codable, Equatable {
+    private enum CodingKeys: String, CodingKey {
+        case isEnabled
+        case allowedSources
+        case bluetoothPeripheralIdentifier
+        case bluetoothPeripheralName
+        case audioRouteIdentifier
+        case audioRouteName
+    }
+
     var isEnabled: Bool
     var allowedSources: Set<VehicleConnectionSource>
     var bluetoothPeripheralIdentifier: String?
     var bluetoothPeripheralName: String
+    var audioRouteIdentifier: String?
+    var audioRouteName: String
 
     init(
         isEnabled: Bool = false,
         allowedSources: Set<VehicleConnectionSource> = [],
         bluetoothPeripheralIdentifier: String? = nil,
-        bluetoothPeripheralName: String = ""
+        bluetoothPeripheralName: String = "",
+        audioRouteIdentifier: String? = nil,
+        audioRouteName: String = ""
     ) {
         self.isEnabled = isEnabled
         self.allowedSources = allowedSources
         self.bluetoothPeripheralIdentifier = bluetoothPeripheralIdentifier
         self.bluetoothPeripheralName = bluetoothPeripheralName
+        self.audioRouteIdentifier = audioRouteIdentifier
+        self.audioRouteName = audioRouteName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? false
+        allowedSources = Set(
+            try container.decodeIfPresent([VehicleConnectionSource].self, forKey: .allowedSources) ?? []
+        )
+        bluetoothPeripheralIdentifier = try container.decodeIfPresent(String.self, forKey: .bluetoothPeripheralIdentifier)
+        bluetoothPeripheralName = try container.decodeIfPresent(String.self, forKey: .bluetoothPeripheralName) ?? ""
+        audioRouteIdentifier = try container.decodeIfPresent(String.self, forKey: .audioRouteIdentifier)
+        audioRouteName = try container.decodeIfPresent(String.self, forKey: .audioRouteName) ?? ""
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(Array(allowedSources), forKey: .allowedSources)
+        try container.encodeIfPresent(bluetoothPeripheralIdentifier, forKey: .bluetoothPeripheralIdentifier)
+        try container.encode(bluetoothPeripheralName, forKey: .bluetoothPeripheralName)
+        try container.encodeIfPresent(audioRouteIdentifier, forKey: .audioRouteIdentifier)
+        try container.encode(audioRouteName, forKey: .audioRouteName)
     }
 
     var usesCarPlay: Bool {
         allowedSources.contains(.carPlay)
+    }
+
+    var usesAudioRoute: Bool {
+        allowedSources.contains(.audioRoute)
     }
 
     var usesBluetoothPeripheral: Bool {
@@ -509,6 +554,13 @@ nonisolated struct VehicleDetectionProfile: Codable, Equatable {
             .sorted { $0.rawValue < $1.rawValue }
             .map(\.title)
             .joined(separator: " + ")
+
+        if usesAudioRoute, !audioRouteName.isEmpty {
+            if usesBluetoothPeripheral, !bluetoothPeripheralName.isEmpty {
+                return "\(sourceText) • \(audioRouteName) • \(bluetoothPeripheralName)"
+            }
+            return "\(sourceText) • \(audioRouteName)"
+        }
 
         if usesBluetoothPeripheral, !bluetoothPeripheralName.isEmpty {
             return "\(sourceText) • \(bluetoothPeripheralName)"
@@ -3981,6 +4033,22 @@ final class MileageStore {
         return trips.filter { $0.vehicleID == activeVehicleID }
     }
 
+    func fuelEntriesForActiveVehicle() -> [FuelEntry] {
+        guard let activeVehicleID else {
+            return []
+        }
+
+        return fuelEntries.filter { $0.vehicleID == activeVehicleID }
+    }
+
+    func maintenanceRecordsForActiveVehicle() -> [MaintenanceRecord] {
+        guard let activeVehicleID else {
+            return []
+        }
+
+        return maintenanceRecords.filter { $0.vehicleID == activeVehicleID }
+    }
+
     func repairHistoricalTripAddressesIfNeeded() async -> Bool {
         var didChangeTrips = false
 
@@ -4018,6 +4086,51 @@ final class MileageStore {
         return didChangeTrips
     }
 
+    func repairRecentTripAddressesIfNeeded(limit: Int = 25) async -> Bool {
+        guard !trips.isEmpty else {
+            return false
+        }
+
+        var didChangeTrips = false
+        let recentCount = min(max(limit, 0), trips.count)
+        guard recentCount > 0 else {
+            return false
+        }
+
+        for index in 0..<recentCount {
+            var trip = trips[index]
+            var didUpdateTrip = false
+
+            if shouldRepairAddress(trip.startAddress),
+               let startPoint = trip.routePoints.first,
+               let resolvedStartAddress = await reverseGeocodedAddress(for: startPoint.coordinate) {
+                trip.startAddress = resolvedStartAddress
+                didUpdateTrip = true
+            }
+
+            if shouldRepairAddress(trip.endAddress),
+               let endPoint = trip.routePoints.last,
+               let resolvedEndAddress = await reverseGeocodedAddress(for: endPoint.coordinate) {
+                trip.endAddress = resolvedEndAddress
+                didUpdateTrip = true
+            }
+
+            guard didUpdateTrip else {
+                continue
+            }
+
+            trips[index] = trip
+            didChangeTrips = true
+        }
+
+        if didChangeTrips {
+            sortTripsDescending()
+            addLog("Updated recent trip addresses from recorded route data")
+        }
+
+        return didChangeTrips
+    }
+
     var totalFuelSpend: Double {
         fuelEntries.reduce(0) { $0 + $1.totalCost }
     }
@@ -4035,39 +4148,84 @@ final class MileageStore {
         fuelEntries(in: currentTaxYearInterval).reduce(0) { $0 + $1.totalCost }
     }
 
+    var currentTaxYearFuelSpendForActiveVehicle: Double {
+        guard let activeVehicleID else {
+            return 0
+        }
+
+        return fuelEntries
+            .filter { $0.vehicleID == activeVehicleID && currentTaxYearInterval.contains($0.date) }
+            .reduce(0) { $0 + $1.totalCost }
+    }
+
     var currentTaxYearMaintenanceSpend: Double {
         maintenanceRecords(in: currentTaxYearInterval).reduce(0) { $0 + $1.totalCost }
     }
 
+    var currentTaxYearMaintenanceSpendForActiveVehicle: Double {
+        guard let activeVehicleID else {
+            return 0
+        }
+
+        return maintenanceRecords
+            .filter { $0.vehicleID == activeVehicleID && currentTaxYearInterval.contains($0.date) }
+            .reduce(0) { $0 + $1.totalCost }
+    }
+
     var monthlyAverageFuelEconomyText: String {
-        let allEntries = fuelEntries.sorted { $0.odometer < $1.odometer }
-        guard allEntries.count >= 2 else {
+        monthlyAverageFuelEconomyText(for: fuelEntries)
+    }
+
+    var monthlyAverageFuelEconomyTextForActiveVehicle: String {
+        monthlyAverageFuelEconomyText(for: fuelEntriesForActiveVehicle())
+    }
+
+    private func monthlyAverageFuelEconomyText(for entries: [FuelEntry]) -> String {
+        guard entries.count >= 2 else {
             return formattedFuelEconomy(distance: 0, liters: 0)
         }
 
-        let monthlyBuckets = Dictionary(grouping: allEntries.indices.dropFirst().compactMap { index -> (Date, Double, Double)? in
-            let current = allEntries[index]
-            guard currentTaxYearInterval.contains(current.date) else {
-                return nil
+        var monthlyTotals: [Date: (distance: Double, volume: Double)] = [:]
+        let entriesByVehicle = Dictionary(grouping: entries, by: \.vehicleID)
+
+        for vehicleEntries in entriesByVehicle.values {
+            let sortedEntries = vehicleEntries.sorted {
+                if $0.odometer == $1.odometer {
+                    if $0.date == $1.date {
+                        return $0.id.uuidString < $1.id.uuidString
+                    }
+                    return $0.date < $1.date
+                }
+                return $0.odometer < $1.odometer
             }
 
-            let previous = allEntries[index - 1]
-            let distance = max(current.odometer - previous.odometer, 0)
-            guard distance > 0, current.volume > 0 else {
-                return nil
+            for index in sortedEntries.indices.dropFirst() {
+                let current = sortedEntries[index]
+                guard currentTaxYearInterval.contains(current.date) else {
+                    continue
+                }
+
+                let previous = sortedEntries[index - 1]
+                let distance = max(current.odometer - previous.odometer, 0)
+                guard distance > 0, current.volume > 0 else {
+                    continue
+                }
+
+                let components = calendar.dateComponents([.year, .month], from: current.date)
+                guard let monthStart = calendar.date(from: components) else {
+                    continue
+                }
+
+                var monthTotals = monthlyTotals[monthStart, default: (0, 0)]
+                monthTotals.distance += distance
+                monthTotals.volume += current.volume
+                monthlyTotals[monthStart] = monthTotals
             }
+        }
 
-            let components = calendar.dateComponents([.year, .month], from: current.date)
-            guard let monthStart = calendar.date(from: components) else {
-                return nil
-            }
-
-            return (monthStart, distance, current.volume)
-        }, by: { $0.0 })
-
-        let monthlyEfficiencies = monthlyBuckets.values.compactMap { samples -> Double? in
-            let totalDistance = samples.reduce(0) { $0 + $1.1 }
-            let totalVolume = samples.reduce(0) { $0 + $1.2 }
+        let monthlyEfficiencies = monthlyTotals.values.compactMap { totals -> Double? in
+            let totalDistance = totals.distance
+            let totalVolume = totals.volume
             guard totalDistance > 0, totalVolume > 0 else {
                 return nil
             }
@@ -4270,20 +4428,20 @@ final class MileageStore {
                     if let fullAddress = mapItem.address?.fullAddress
                         .trimmingCharacters(in: .whitespacesAndNewlines),
                        !fullAddress.isEmpty {
-                        return fullAddress
+                        return formattedPOIAddress(name: mapItem.name, address: fullAddress)
                     }
 
                     if let shortAddress = mapItem.address?.shortAddress?
                         .trimmingCharacters(in: .whitespacesAndNewlines),
                        !shortAddress.isEmpty {
-                        return shortAddress
+                        return formattedPOIAddress(name: mapItem.name, address: shortAddress)
                     }
 
                     if let fullAddress = mapItem.addressRepresentations?
                         .fullAddress(includingRegion: true, singleLine: true)?
                         .trimmingCharacters(in: .whitespacesAndNewlines),
                        !fullAddress.isEmpty {
-                        return fullAddress
+                        return formattedPOIAddress(name: mapItem.name, address: fullAddress)
                     }
 
                     let parts = [
@@ -4320,7 +4478,8 @@ final class MileageStore {
                     .filter { !$0.isEmpty }
 
                     if !parts.isEmpty {
-                        return parts.joined(separator: ", ")
+                        let address = parts.joined(separator: ", ")
+                        return formattedPOIAddress(name: placemark.name, address: address)
                     }
                 }
             }
@@ -4329,6 +4488,26 @@ final class MileageStore {
         }
 
         return nil
+    }
+
+    private func formattedPOIAddress(name: String?, address: String) -> String {
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAddress.isEmpty else {
+            return address
+        }
+
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmedName.isEmpty else {
+            return trimmedAddress
+        }
+
+        let normalizedName = trimmedName.lowercased()
+        let normalizedAddress = trimmedAddress.lowercased()
+        if normalizedAddress == normalizedName || normalizedAddress.hasPrefix(normalizedName + ",") || normalizedAddress.hasPrefix(normalizedName + " -") {
+            return trimmedAddress
+        }
+
+        return "\(trimmedName) - \(trimmedAddress)"
     }
 
     func updateTrip(_ updatedTrip: Trip) {
@@ -6591,21 +6770,28 @@ final class TripTracker: NSObject, CLLocationManagerDelegate {
             return "Unknown location"
         }
 
-        do {
-            if #available(iOS 26, *) {
+        if #available(iOS 26, *) {
+            do {
                 let request = try requestForReverseGeocoding(location: location)
                 if let mapItem = try await request.mapItems.first,
                    let address = formattedAddress(from: mapItem) {
                     return address
                 }
-            } else {
+            }
+            catch {
+                // Fall through to CLGeocoder fallback.
+            }
+        }
+
+        if #unavailable(iOS 26) {
+            do {
                 let placemark = try await CLGeocoder().reverseGeocodeLocation(location).first
                 if let placemark, let address = formattedAddress(from: placemark) {
                     return address
                 }
+            } catch {
+                // Fall through to coordinate fallback.
             }
-        } catch {
-            return coordinateString(for: location)
         }
 
         return coordinateString(for: location)
@@ -6624,19 +6810,19 @@ final class TripTracker: NSObject, CLLocationManagerDelegate {
         if let fullAddress = mapItem.address?.fullAddress
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !fullAddress.isEmpty {
-            return fullAddress
+            return formattedPOIAddress(name: mapItem.name, address: fullAddress)
         }
 
         if let shortAddress = mapItem.address?.shortAddress?
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !shortAddress.isEmpty {
-            return shortAddress
+            return formattedPOIAddress(name: mapItem.name, address: shortAddress)
         }
 
         if let fullAddress = mapItem.addressRepresentations?.fullAddress(includingRegion: true, singleLine: true)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !fullAddress.isEmpty {
-            return fullAddress
+            return formattedPOIAddress(name: mapItem.name, address: fullAddress)
         }
 
         let parts = [
@@ -6676,7 +6862,28 @@ final class TripTracker: NSObject, CLLocationManagerDelegate {
             return nil
         }
 
-        return parts.joined(separator: ", ")
+        let address = parts.joined(separator: ", ")
+        return formattedPOIAddress(name: placemark.name, address: address)
+    }
+
+    private func formattedPOIAddress(name: String?, address: String) -> String {
+        let trimmedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAddress.isEmpty else {
+            return address
+        }
+
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmedName.isEmpty else {
+            return trimmedAddress
+        }
+
+        let normalizedName = trimmedName.lowercased()
+        let normalizedAddress = trimmedAddress.lowercased()
+        if normalizedAddress == normalizedName || normalizedAddress.hasPrefix(normalizedName + ",") || normalizedAddress.hasPrefix(normalizedName + " -") {
+            return trimmedAddress
+        }
+
+        return "\(trimmedName) - \(trimmedAddress)"
     }
 
     private func coordinateString(for location: CLLocation) -> String {
@@ -6943,6 +7150,23 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
         let message: String
     }
 
+    struct ConnectedAudioRoute: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let portType: AVAudioSession.Port
+
+        var summary: String {
+            switch portType {
+            case .bluetoothHFP:
+                return "\(name) (Calls)"
+            case .bluetoothA2DP:
+                return "\(name) (Media)"
+            default:
+                return name
+            }
+        }
+    }
+
     private struct BluetoothNameObservation {
         let identifier: UUID
         let firstSeen: Date
@@ -6953,10 +7177,12 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
     @ObservationIgnored private var staleDeviceTimer: Timer?
     @ObservationIgnored private let staleDeviceInterval: TimeInterval = 45
     @ObservationIgnored private var bluetoothNameObservations: [String: [BluetoothNameObservation]] = [:]
+    @ObservationIgnored private var audioRouteObserverTokens: [NSObjectProtocol] = []
 
     private(set) var bluetoothAuthorization = CBManager.authorization
     private(set) var bluetoothState: CBManagerState = .unknown
     private(set) var discoveredBluetoothDevices: [DiscoveredBluetoothDevice] = []
+    private(set) var connectedAudioRoutes: [ConnectedAudioRoute] = []
     private(set) var matchedVehicleID: UUID?
     private(set) var detectorReliabilityIssues: [DetectorReliabilityIssue] = []
     var isDetectionEnabled = false {
@@ -6990,6 +7216,8 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
 
     override init() {
         super.init()
+        refreshAudioRouteSnapshot()
+        registerAudioRouteObservers()
         staleDeviceTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             guard let manager = self else {
                 return
@@ -7003,12 +7231,16 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
 
     deinit {
         staleDeviceTimer?.invalidate()
+        for token in audioRouteObserverTokens {
+            NotificationCenter.default.removeObserver(token)
+        }
     }
 
     var statusSummary: String {
         let parts = [
             isDetectionEnabled ? "Vehicle detection enabled" : "Vehicle detection off",
             isCarPlayConnected ? "CarPlay connected" : nil,
+            connectedAudioRoutes.isEmpty ? nil : "\(connectedAudioRoutes.count) car audio route(s) connected",
             discoveredBluetoothDevices.isEmpty ? nil : "\(discoveredBluetoothDevices.count) Bluetooth device(s) nearby",
             isManualBluetoothScanActive ? "Scanning for Bluetooth devices" : nil,
             isDetectionEnabled ? "BLE match after \(Int(BluetoothMatching.requiredVisibleDuration))s at RSSI \(BluetoothMatching.minimumRSSI) or stronger" : nil,
@@ -7044,8 +7276,38 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
         }
     }
 
+    var visibleBluetoothDevices: [DiscoveredBluetoothDevice] {
+        discoveredBluetoothDevices.filter { device in
+            let isAssigned = configuredVehicles.contains {
+                $0.detectionProfile.bluetoothPeripheralIdentifier == device.id.uuidString
+            }
+            return isAssigned || !isUnknownBluetoothDeviceName(device.name)
+        }
+    }
+
+    var hiddenUnknownBluetoothDeviceCount: Int {
+        max(0, discoveredBluetoothDevices.count - visibleBluetoothDevices.count)
+    }
+
     func requestBluetoothAccessIfNeeded() {
         _ = centralManager.state
+    }
+
+    func refreshAudioRouteSnapshot() {
+        let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
+        connectedAudioRoutes = outputs
+            .filter { output in
+                output.portType == .bluetoothHFP || output.portType == .bluetoothA2DP
+            }
+            .map { output in
+                let name = output.portName.trimmingCharacters(in: .whitespacesAndNewlines)
+                return ConnectedAudioRoute(
+                    id: output.uid,
+                    name: name.isEmpty ? "Unknown audio device" : name,
+                    portType: output.portType
+                )
+            }
+        reevaluateMatchedVehicle()
     }
 
     func startManualBluetoothScan() {
@@ -7127,6 +7389,31 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
         )
     }
 
+    private func registerAudioRouteObservers() {
+        let center = NotificationCenter.default
+        let routeToken = center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.refreshAudioRouteSnapshot()
+            }
+        }
+        let inputToken = center.addObserver(
+            forName: AVAudioSession.availableInputsChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.refreshAudioRouteSnapshot()
+            }
+        }
+        audioRouteObserverTokens = [routeToken, inputToken]
+    }
+
     private func purgeStaleDevices() {
         let cutoff = Date.now.addingTimeInterval(-staleDeviceInterval)
         let oldCount = discoveredBluetoothDevices.count
@@ -7159,8 +7446,8 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
         let existingName = existing.trimmingCharacters(in: .whitespacesAndNewlines)
         let latestName = latest.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let existingIsUnknown = existingName.isEmpty || existingName == "Unknown device"
-        let latestIsUnknown = latestName.isEmpty || latestName == "Unknown device"
+        let existingIsUnknown = isUnknownBluetoothDeviceName(existingName)
+        let latestIsUnknown = isUnknownBluetoothDeviceName(latestName)
 
         if existingIsUnknown && !latestIsUnknown {
             return latestName
@@ -7171,6 +7458,13 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
         }
 
         return latestIsUnknown ? "Unknown device" : latestName
+    }
+
+    private func isUnknownBluetoothDeviceName(_ name: String) -> Bool {
+        let normalized = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        return normalized.isEmpty || normalized == "unknown device"
     }
 
     private func reevaluateMatchedVehicle() {
@@ -7191,11 +7485,15 @@ final class VehicleConnectionManager: NSObject, CBCentralManagerDelegate {
             }
 
             let matchesCarPlay = profile.usesCarPlay && isCarPlayConnected
+            let matchesAudioRoute = profile.usesAudioRoute
+                && profile.audioRouteIdentifier.map { identifier in
+                    connectedAudioRoutes.contains { $0.id == identifier }
+                } == true
             let matchesBluetooth = profile.usesBluetoothPeripheral && profile.bluetoothPeripheralUUID.map { uuid in
                 bluetoothDeviceIsMatched(uuid: uuid)
             } == true
 
-            return matchesCarPlay || matchesBluetooth
+            return matchesCarPlay || matchesAudioRoute || matchesBluetooth
         }
 
         let nextVehicleID = candidateVehicles.first?.id
@@ -7451,9 +7749,30 @@ final class SharedAppModel {
         }
 
         let snapshot = persistenceSnapshot
+        cloudSync.markLocalSnapshotDirty(snapshot)
         Task {
             await cloudSync.syncLocalChanges(snapshot: snapshot)
         }
+    }
+
+    func repairRecentTripAddressesAndSyncIfNeeded() async {
+        guard hasLoadedPersistence else {
+            return
+        }
+
+        guard await store.repairRecentTripAddressesIfNeeded() else {
+            return
+        }
+
+        saveCurrentSnapshot()
+
+        guard authSession.canUseCloudSyncFeatures else {
+            return
+        }
+
+        let snapshot = persistenceSnapshot
+        cloudSync.markLocalSnapshotDirty(snapshot)
+        await cloudSync.syncLocalChanges(snapshot: snapshot)
     }
 
     func applyRestoredSnapshot(_ snapshot: AppPersistenceSnapshot) {
@@ -7770,24 +8089,67 @@ final class SharedAppModel {
 
         loadPersistedDataIfNeeded()
 
-        guard url.host == "trip-type",
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let value = components.queryItems?.first(where: { $0.name == "value" })?.value,
-              let tripType = TripType(rawValue: value) else {
-            return
-        }
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
 
-        Task { @MainActor in
-            let currentOdometer = store.currentOdometerReading(activeTripDistanceMeters: tripTracker.currentTripDistance)
-            if let completedTrip = await tripTracker.selectTripType(
-                tripType,
-                nextTripStartOdometerReading: currentOdometer,
-                completedTripEndOdometerReading: currentOdometer
-            ) {
-                store.addTrip(completedTrip)
+        switch url.host {
+        case "trip-type":
+            guard let value = components?.queryItems?.first(where: { $0.name == "value" })?.value,
+                  let tripType = TripType(rawValue: value) else {
+                return
             }
-            persistAndSyncNowIfPossible()
-            refreshWidgetSnapshot(forceReload: true)
+
+            Task { @MainActor in
+                let currentOdometer = store.currentOdometerReading(activeTripDistanceMeters: tripTracker.currentTripDistance)
+                if let completedTrip = await tripTracker.selectTripType(
+                    tripType,
+                    nextTripStartOdometerReading: currentOdometer,
+                    completedTripEndOdometerReading: currentOdometer
+                ) {
+                    store.addTrip(completedTrip)
+                }
+                persistAndSyncNowIfPossible()
+                refreshWidgetSnapshot(forceReload: true)
+            }
+
+        case "trip-recording":
+            guard let action = components?.queryItems?.first(where: { $0.name == "action" })?.value else {
+                return
+            }
+
+            Task { @MainActor in
+                let currentOdometer = store.currentOdometerReading(activeTripDistanceMeters: tripTracker.currentTripDistance)
+
+                switch action {
+                case "start":
+                    if !tripTracker.isTracking {
+                        tripTracker.startTracking(startOdometerReading: store.currentBaseOdometerReading())
+                    }
+
+                case "stop":
+                    if tripTracker.isTracking,
+                       let trip = await tripTracker.stopTracking(endOdometerReading: currentOdometer) {
+                        store.addTrip(trip)
+                    }
+
+                case "toggle":
+                    if tripTracker.isTracking {
+                        if let trip = await tripTracker.stopTracking(endOdometerReading: currentOdometer) {
+                            store.addTrip(trip)
+                        }
+                    } else {
+                        tripTracker.startTracking(startOdometerReading: store.currentBaseOdometerReading())
+                    }
+
+                default:
+                    return
+                }
+
+                persistAndSyncNowIfPossible()
+                refreshWidgetSnapshot(forceReload: true)
+            }
+
+        default:
+            break
         }
     }
 
@@ -8014,8 +8376,333 @@ final class MeerkatAppDelegate: NSObject, UIApplicationDelegate {
             configuration.sceneClass = CPTemplateApplicationScene.self
             configuration.delegateClass = MeerkatCarPlaySceneDelegate.self
         }
+        else if connectingSceneSession.role.rawValue == "CPTemplateApplicationInstrumentClusterSceneSessionRoleApplication" {
+            configuration.sceneClass = CPTemplateApplicationInstrumentClusterScene.self
+            configuration.delegateClass = MeerkatCarPlayInstrumentClusterSceneDelegate.self
+        }
 
         return configuration
+    }
+}
+
+@MainActor
+@Observable
+final class MeerkatCarPlayClusterTelemetryModel {
+    var isTracking = false
+    var speedText = "0 mph"
+    var speedValue = 0.0
+    var speedMaximum = 120.0
+    var tripTypeText = TripType.business.title
+    var tripDistanceText = "0.0 mi"
+    var odometerText = "0.0 mi"
+    var elapsedText = "00:00:00"
+    var statusText = "Ready"
+    var vehicleText = "No vehicle selected"
+    var driverText = "No driver selected"
+
+    var speedProgress: Double {
+        guard speedMaximum > 0 else {
+            return 0
+        }
+        return min(max(speedValue / speedMaximum, 0), 1)
+    }
+
+    func refresh(from appModel: SharedAppModel) {
+        let store = appModel.store
+        let tripTracker = appModel.tripTracker
+        let currentOdometer = store.currentOdometerReading(activeTripDistanceMeters: tripTracker.currentTripDistance)
+        let displayedSpeed = store.unitSystem.convertedDistance(for: max(tripTracker.currentSpeed, 0) * 3_600)
+
+        isTracking = tripTracker.isTracking
+        speedText = store.unitSystem.speedString(for: tripTracker.currentSpeed)
+        speedValue = displayedSpeed
+        speedMaximum = store.unitSystem == .miles ? 120 : 200
+        tripTypeText = tripTracker.selectedTripType.title
+        tripDistanceText = store.unitSystem.distanceString(for: tripTracker.currentTripDistance)
+        odometerText = "\(currentOdometer.formatted(.number.precision(.fractionLength(1)))) \(store.unitSystem == .miles ? "mi" : "km")"
+        elapsedText = tripTracker.elapsedTimeString
+        statusText = tripTracker.recordingStatusText(unitSystem: store.unitSystem)
+        vehicleText = store.activeVehicle?.displayName ?? "No vehicle selected"
+        driverText = store.activeDriver?.name ?? "No driver selected"
+    }
+}
+
+private struct MeerkatCarPlayClusterTelemetryView: View {
+    @Bindable var model: MeerkatCarPlayClusterTelemetryModel
+
+    var body: some View {
+        ZStack {
+            backgroundView
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                statusRow
+
+                gaugeView
+
+                HStack(spacing: 10) {
+                    telemetryPill(title: "Trip", value: model.tripTypeText, emphasis: model.tripTypeText)
+                    telemetryPill(title: "Distance", value: model.tripDistanceText, emphasis: nil)
+                    telemetryPill(title: "Odometer", value: model.odometerText, emphasis: nil)
+                    telemetryPill(title: "Elapsed", value: model.elapsedText, emphasis: nil)
+                }
+
+                Text("\(model.vehicleText) • \(model.driverText)")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color.white.opacity(0.68))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+        }
+    }
+
+    private var backgroundView: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.black, Color(red: 0.07, green: 0.08, blue: 0.11)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            RadialGradient(
+                colors: [
+                    Color(red: 0.12, green: 0.15, blue: 0.20).opacity(0.45),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 40,
+                endRadius: 320
+            )
+        }
+    }
+
+    private var statusRow: some View {
+        HStack(spacing: 8) {
+            Label(model.isTracking ? "Recording" : "Ready", systemImage: model.isTracking ? "record.circle.fill" : "checkmark.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(model.isTracking ? Color.green : Color.white.opacity(0.85))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.09))
+                )
+
+            Text(model.statusText)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color.white.opacity(0.78))
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var gaugeView: some View {
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            let angle = -120.0 + (240.0 * model.speedProgress)
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.42))
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+
+                Circle()
+                    .trim(from: 0.17, to: 0.83)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 12)
+                    .rotationEffect(.degrees(90))
+
+                Circle()
+                    .trim(from: 0.17, to: 0.17 + (0.66 * model.speedProgress))
+                    .stroke(
+                        AngularGradient(
+                            colors: [Color.cyan, Color.green, Color.yellow, Color.orange, Color.red],
+                            center: .center,
+                            startAngle: .degrees(-120),
+                            endAngle: .degrees(120)
+                        ),
+                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(90))
+
+                ForEach(0 ..< 61, id: \.self) { tick in
+                    let isMajorTick = tick.isMultiple(of: 5)
+                    let normalized = Double(tick) / 60.0
+                    let tickAngle = -120.0 + (normalized * 240.0)
+                    Capsule(style: .continuous)
+                        .fill(isMajorTick ? Color.white.opacity(0.85) : Color.white.opacity(0.35))
+                        .frame(width: isMajorTick ? 2.6 : 1.5, height: isMajorTick ? 10 : 5)
+                        .offset(y: -(size * 0.39))
+                        .rotationEffect(.degrees(tickAngle))
+                }
+
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.red, Color.orange],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .frame(width: 4.5, height: size * 0.30)
+                    .offset(y: -(size * 0.15))
+                    .rotationEffect(.degrees(angle))
+                    .shadow(color: Color.red.opacity(0.35), radius: 6, x: 0, y: 0)
+
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 12, height: 12)
+
+                VStack(spacing: 3) {
+                    Text(model.speedText)
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                    Text(model.speedMaximum >= 190 ? "KM/H" : "MPH")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.white.opacity(0.7))
+                }
+            }
+            .frame(width: size, height: size)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+        .frame(height: 230)
+    }
+
+    private func telemetryPill(title: String, value: String, emphasis: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Color.white.opacity(0.58))
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(emphasisColor(for: emphasis))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.09))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
+    private func emphasisColor(for value: String?) -> Color {
+        guard let value else {
+            return .white
+        }
+
+        if value.caseInsensitiveCompare("Business") == .orderedSame {
+            return Color.orange
+        }
+        if value.caseInsensitiveCompare("Personal") == .orderedSame {
+            return Color.cyan
+        }
+        return .white
+    }
+}
+
+@MainActor
+final class MeerkatCarPlayInstrumentClusterSceneDelegate: UIResponder, CPTemplateApplicationInstrumentClusterSceneDelegate, CPInstrumentClusterControllerDelegate {
+    private let appModel = SharedAppModel.shared
+    private let telemetryModel = MeerkatCarPlayClusterTelemetryModel()
+    private var instrumentClusterController: CPInstrumentClusterController?
+    private var stateObserver: NSObjectProtocol?
+    private var refreshTask: Task<Void, Never>?
+    private weak var instrumentClusterWindow: UIWindow?
+    private var hostingController: UIHostingController<MeerkatCarPlayClusterTelemetryView>?
+
+    func templateApplicationInstrumentClusterScene(
+        _ templateApplicationInstrumentClusterScene: CPTemplateApplicationInstrumentClusterScene,
+        didConnect instrumentClusterController: CPInstrumentClusterController
+    ) {
+        self.instrumentClusterController = instrumentClusterController
+        instrumentClusterController.delegate = self
+
+        // Ensure cluster can render with locally persisted data immediately.
+        appModel.loadPersistedDataIfNeeded()
+
+        registerStateObserver()
+        startRefreshLoop()
+        refreshTelemetry()
+
+        if let window = instrumentClusterController.instrumentClusterWindow {
+            attachClusterWindow(window)
+        }
+    }
+
+    func templateApplicationInstrumentClusterScene(
+        _ templateApplicationInstrumentClusterScene: CPTemplateApplicationInstrumentClusterScene,
+        didDisconnectInstrumentClusterController instrumentClusterController: CPInstrumentClusterController
+    ) {
+        cleanup()
+    }
+
+    func instrumentClusterControllerDidConnect(_ instrumentClusterWindow: UIWindow) {
+        attachClusterWindow(instrumentClusterWindow)
+    }
+
+    func instrumentClusterControllerDidDisconnectWindow(_ instrumentClusterWindow: UIWindow) {
+        if self.instrumentClusterWindow === instrumentClusterWindow {
+            self.instrumentClusterWindow = nil
+            self.hostingController = nil
+        }
+    }
+
+    private func attachClusterWindow(_ window: UIWindow) {
+        instrumentClusterWindow = window
+        let rootView = MeerkatCarPlayClusterTelemetryView(model: telemetryModel)
+        let controller = UIHostingController(rootView: rootView)
+        controller.view.backgroundColor = .clear
+        window.rootViewController = controller
+        window.isHidden = false
+        hostingController = controller
+    }
+
+    private func registerStateObserver() {
+        stateObserver = NotificationCenter.default.addObserver(
+            forName: .meerkatTripTrackerStateDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshTelemetry()
+            }
+        }
+    }
+
+    private func startRefreshLoop() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled {
+                self.refreshTelemetry()
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    private func refreshTelemetry() {
+        telemetryModel.refresh(from: appModel)
+    }
+
+    private func cleanup() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        if let stateObserver {
+            NotificationCenter.default.removeObserver(stateObserver)
+            self.stateObserver = nil
+        }
+        instrumentClusterController?.delegate = nil
+        instrumentClusterController = nil
+        instrumentClusterWindow = nil
+        hostingController = nil
     }
 }
 
@@ -8072,11 +8759,20 @@ final class MeerkatCarPlaySceneDelegate: UIResponder, CPTemplateApplicationScene
                 self?.handleTripTrackerStateDidChange()
             }
         }
-        interfaceController.setRootTemplate(makeLoadingTemplate(), animated: false, completion: nil)
 
-        Task { @MainActor in
-            await appModel.loadPersistedDataIfNeededAsync()
-            refreshRootTemplate(animated: false)
+        // Avoid leaving CarPlay blank while background hydration/repair tasks run.
+        // Load local persisted state immediately and render the real dashboard first.
+        interfaceController.setRootTemplate(makeLoadingTemplate(), animated: false, completion: nil)
+        appModel.loadPersistedDataIfNeeded()
+        refreshRootTemplate(animated: false)
+
+        // Run the async load path in case this scene connected before local data was available.
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            await self.appModel.loadPersistedDataIfNeededAsync()
+            self.refreshRootTemplate(animated: false)
         }
     }
 
@@ -10760,6 +11456,15 @@ final class SubscriptionManager {
 @MainActor
 @Observable
 final class CloudSyncManager {
+    struct SyncAuditEntry: Identifiable {
+        let id = UUID()
+        let timestamp: Date
+        let provider: String
+        let action: String
+        let outcome: String
+        let summary: String
+    }
+
     fileprivate enum Constants {
         static let cloudContainerIdentifier = "iCloud.com.miletracker.app.Meerkat---Milage-Tracker"
         static let customZoneName = "MeerkatData"
@@ -10812,10 +11517,22 @@ final class CloudSyncManager {
     private var pendingUploadSnapshot: AppPersistenceSnapshot?
     private let networkMonitor = NWPathMonitor()
     private let networkMonitorQueue = DispatchQueue(label: "Meerkat.CloudSyncMonitor")
+    private let maxAuditEntries = 60
+    private var lastSuccessfulSyncDate: Date?
 
     var statusMessage = "Cloud sync not started."
     var isSyncing = false
     var hasCompletedInitialSync = false
+    var recentSyncAuditEntries: [SyncAuditEntry] = []
+    var latestUploadedTripID: UUID?
+    var latestUploadedFuelEntryID: UUID?
+    var latestUploadedMaintenanceRecordID: UUID?
+    var uploadedTripIDs: Set<UUID> = []
+    var uploadedFuelEntryIDs: Set<UUID> = []
+    var uploadedMaintenanceRecordIDs: Set<UUID> = []
+    var pendingTripIDs: Set<UUID> = []
+    var pendingFuelEntryIDs: Set<UUID> = []
+    var pendingMaintenanceRecordIDs: Set<UUID> = []
 
     init() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
@@ -10844,6 +11561,135 @@ final class CloudSyncManager {
         hasCompletedInitialSync = false
         lastUploadedSnapshot = nil
         pendingUploadSnapshot = nil
+        recentSyncAuditEntries = []
+        latestUploadedTripID = nil
+        latestUploadedFuelEntryID = nil
+        latestUploadedMaintenanceRecordID = nil
+        uploadedTripIDs = []
+        uploadedFuelEntryIDs = []
+        uploadedMaintenanceRecordIDs = []
+        pendingTripIDs = []
+        pendingFuelEntryIDs = []
+        pendingMaintenanceRecordIDs = []
+        lastSuccessfulSyncDate = nil
+    }
+
+    private func providerLabel() -> String {
+        usesFirebaseSync ? "Firebase" : "iCloud"
+    }
+
+    private func snapshotSummary(_ snapshot: AppPersistenceSnapshot) -> String {
+        "vehicles:\(snapshot.store.vehicles.count) archivedVehicles:\(snapshot.store.archivedVehicles.count) drivers:\(snapshot.store.drivers.count) archivedDrivers:\(snapshot.store.archivedDrivers.count) trips:\(snapshot.store.trips.count) fuel:\(snapshot.store.fuelEntries.count) maintenance:\(snapshot.store.maintenanceRecords.count) logs:\(snapshot.store.logs.count)"
+    }
+
+    private func appendAudit(
+        action: String,
+        outcome: String,
+        snapshot: AppPersistenceSnapshot?
+    ) {
+        let summary = snapshot.map(snapshotSummary) ?? "no-snapshot"
+        let entry = SyncAuditEntry(
+            timestamp: .now,
+            provider: providerLabel(),
+            action: action,
+            outcome: outcome,
+            summary: summary
+        )
+        recentSyncAuditEntries.append(entry)
+        if recentSyncAuditEntries.count > maxAuditEntries {
+            recentSyncAuditEntries.removeFirst(recentSyncAuditEntries.count - maxAuditEntries)
+        }
+        print("[CloudSyncAudit] \(entry.timestamp.formatted(date: .abbreviated, time: .standard)) \(entry.provider) \(entry.action) \(entry.outcome) \(entry.summary)")
+    }
+
+    private func markSnapshotAsUploaded(_ snapshot: AppPersistenceSnapshot) {
+        lastUploadedSnapshot = snapshot
+        lastSuccessfulSyncDate = .now
+        latestUploadedTripID = snapshot.store.trips.first?.id
+        latestUploadedFuelEntryID = snapshot.store.fuelEntries.first?.id
+        latestUploadedMaintenanceRecordID = snapshot.store.maintenanceRecords.first?.id
+        uploadedTripIDs = Set(snapshot.store.trips.map(\.id))
+        uploadedFuelEntryIDs = Set(snapshot.store.fuelEntries.map(\.id))
+        uploadedMaintenanceRecordIDs = Set(snapshot.store.maintenanceRecords.map(\.id))
+        pendingTripIDs = []
+        pendingFuelEntryIDs = []
+        pendingMaintenanceRecordIDs = []
+    }
+
+    func shouldRefreshOnForeground(snapshot: AppPersistenceSnapshot, minimumInterval: TimeInterval) -> Bool {
+        guard hasCompletedInitialSync else {
+            return true
+        }
+
+        if isSyncing {
+            return false
+        }
+
+        if pendingUploadSnapshot != nil || !pendingTripIDs.isEmpty || !pendingFuelEntryIDs.isEmpty || !pendingMaintenanceRecordIDs.isEmpty {
+            return true
+        }
+
+        guard let lastUploadedSnapshot else {
+            return true
+        }
+
+        if snapshot != lastUploadedSnapshot {
+            return true
+        }
+
+        guard let lastSuccessfulSyncDate else {
+            return true
+        }
+
+        return Date().timeIntervalSince(lastSuccessfulSyncDate) >= minimumInterval
+    }
+
+    func markLocalSnapshotDirty(_ snapshot: AppPersistenceSnapshot) {
+        guard let lastUploadedSnapshot else {
+            uploadedTripIDs = []
+            uploadedFuelEntryIDs = []
+            uploadedMaintenanceRecordIDs = []
+            latestUploadedTripID = nil
+            latestUploadedFuelEntryID = nil
+            latestUploadedMaintenanceRecordID = nil
+            pendingTripIDs = Set(snapshot.store.trips.map(\.id))
+            pendingFuelEntryIDs = Set(snapshot.store.fuelEntries.map(\.id))
+            pendingMaintenanceRecordIDs = Set(snapshot.store.maintenanceRecords.map(\.id))
+            return
+        }
+
+        let uploadedTripsByID = Dictionary(uniqueKeysWithValues: lastUploadedSnapshot.store.trips.map { ($0.id, $0) })
+        uploadedTripIDs = Set(
+            snapshot.store.trips.compactMap { trip in
+                uploadedTripsByID[trip.id] == trip ? trip.id : nil
+            }
+        )
+        if let latestUploadedTripID, !uploadedTripIDs.contains(latestUploadedTripID) {
+            self.latestUploadedTripID = nil
+        }
+        pendingTripIDs = Set(snapshot.store.trips.map(\.id)).subtracting(uploadedTripIDs)
+
+        let uploadedFuelEntriesByID = Dictionary(uniqueKeysWithValues: lastUploadedSnapshot.store.fuelEntries.map { ($0.id, $0) })
+        uploadedFuelEntryIDs = Set(
+            snapshot.store.fuelEntries.compactMap { entry in
+                uploadedFuelEntriesByID[entry.id] == entry ? entry.id : nil
+            }
+        )
+        if let latestUploadedFuelEntryID, !uploadedFuelEntryIDs.contains(latestUploadedFuelEntryID) {
+            self.latestUploadedFuelEntryID = nil
+        }
+        pendingFuelEntryIDs = Set(snapshot.store.fuelEntries.map(\.id)).subtracting(uploadedFuelEntryIDs)
+
+        let uploadedMaintenanceRecordsByID = Dictionary(uniqueKeysWithValues: lastUploadedSnapshot.store.maintenanceRecords.map { ($0.id, $0) })
+        uploadedMaintenanceRecordIDs = Set(
+            snapshot.store.maintenanceRecords.compactMap { record in
+                uploadedMaintenanceRecordsByID[record.id] == record ? record.id : nil
+            }
+        )
+        if let latestUploadedMaintenanceRecordID, !uploadedMaintenanceRecordIDs.contains(latestUploadedMaintenanceRecordID) {
+            self.latestUploadedMaintenanceRecordID = nil
+        }
+        pendingMaintenanceRecordIDs = Set(snapshot.store.maintenanceRecords.map(\.id)).subtracting(uploadedMaintenanceRecordIDs)
     }
 
     func syncLocalChanges(snapshot: AppPersistenceSnapshot) async {
@@ -10888,20 +11734,28 @@ final class CloudSyncManager {
                     if mergedSnapshot != remoteSnapshot {
                         try await uploadFirebaseSnapshot(mergedSnapshot)
                     }
-                    lastUploadedSnapshot = mergedSnapshot
+                    markSnapshotAsUploaded(mergedSnapshot)
                     statusMessage = mergedSnapshot == remoteSnapshot ? "Cloud data restored." : "Cloud data merged."
+                    appendAudit(
+                        action: "initial-sync",
+                        outcome: mergedSnapshot == remoteSnapshot ? "restored" : "merged",
+                        snapshot: mergedSnapshot
+                    )
                     return mergedSnapshot == localSnapshot ? nil : mergedSnapshot
                 }
 
                 if !localSnapshot.isEmpty {
                     try await uploadFirebaseSnapshot(localSnapshot)
-                    lastUploadedSnapshot = localSnapshot
+                    markSnapshotAsUploaded(localSnapshot)
                     statusMessage = "Cloud backup created."
+                    appendAudit(action: "initial-sync", outcome: "uploaded-local-backup", snapshot: localSnapshot)
                 } else {
                     statusMessage = "Cloud sync is ready."
+                    appendAudit(action: "initial-sync", outcome: "ready-no-data", snapshot: localSnapshot)
                 }
             } catch {
                 statusMessage = "Cloud sync failed: \(error.localizedDescription)"
+                appendAudit(action: "initial-sync", outcome: "failed: \(error.localizedDescription)", snapshot: localSnapshot)
             }
 
             return nil
@@ -10953,20 +11807,28 @@ final class CloudSyncManager {
                     try await upload(snapshot: mergedSnapshot)
                 }
 
-                lastUploadedSnapshot = mergedSnapshot
+                markSnapshotAsUploaded(mergedSnapshot)
                 statusMessage = mergedSnapshot == remoteSnapshot ? "Cloud data restored." : "Cloud data merged."
+                appendAudit(
+                    action: "initial-sync",
+                    outcome: mergedSnapshot == remoteSnapshot ? "restored" : "merged",
+                    snapshot: mergedSnapshot
+                )
                 return mergedSnapshot == localSnapshot ? nil : mergedSnapshot
             }
 
             if !localSnapshot.isEmpty {
                 try await upload(snapshot: localSnapshot)
-                lastUploadedSnapshot = localSnapshot
+                markSnapshotAsUploaded(localSnapshot)
                 statusMessage = "Cloud backup created."
+                appendAudit(action: "initial-sync", outcome: "uploaded-local-backup", snapshot: localSnapshot)
             } else {
                 statusMessage = "Cloud sync is ready."
+                appendAudit(action: "initial-sync", outcome: "ready-no-data", snapshot: localSnapshot)
             }
         } catch {
             statusMessage = "Cloud sync failed: \(error.localizedDescription)"
+            appendAudit(action: "initial-sync", outcome: "failed: \(error.localizedDescription)", snapshot: localSnapshot)
         }
 
         return nil
@@ -10987,7 +11849,7 @@ final class CloudSyncManager {
 
             do {
                 try await uploadFirebaseSnapshot(snapshot)
-                lastUploadedSnapshot = snapshot
+                markSnapshotAsUploaded(snapshot)
                 statusMessage = "Cloud backup complete."
             } catch {
                 statusMessage = "Cloud backup failed: \(error.localizedDescription)"
@@ -11016,7 +11878,7 @@ final class CloudSyncManager {
         do {
             try await ensureCustomZoneExists()
             try await upload(snapshot: snapshot)
-            lastUploadedSnapshot = snapshot
+            markSnapshotAsUploaded(snapshot)
             statusMessage = "Cloud backup complete."
         } catch {
             statusMessage = "Cloud backup failed: \(error.localizedDescription)"
@@ -11033,6 +11895,15 @@ final class CloudSyncManager {
             do {
                 try await deleteFirebaseSnapshot()
                 lastUploadedSnapshot = nil
+                latestUploadedTripID = nil
+                latestUploadedFuelEntryID = nil
+                latestUploadedMaintenanceRecordID = nil
+                uploadedTripIDs = []
+                uploadedFuelEntryIDs = []
+                uploadedMaintenanceRecordIDs = []
+                pendingTripIDs = []
+                pendingFuelEntryIDs = []
+                pendingMaintenanceRecordIDs = []
                 pendingUploadSnapshot = nil
                 hasCompletedInitialSync = false
                 statusMessage = "Cloud account data deleted."
@@ -11057,6 +11928,15 @@ final class CloudSyncManager {
         do {
             try await deleteCustomZoneIfPresent()
             lastUploadedSnapshot = nil
+            latestUploadedTripID = nil
+            latestUploadedFuelEntryID = nil
+            latestUploadedMaintenanceRecordID = nil
+            uploadedTripIDs = []
+            uploadedFuelEntryIDs = []
+            uploadedMaintenanceRecordIDs = []
+            pendingTripIDs = []
+            pendingFuelEntryIDs = []
+            pendingMaintenanceRecordIDs = []
             pendingUploadSnapshot = nil
             hasCompletedInitialSync = false
             statusMessage = "Cloud account data deleted."
@@ -11084,13 +11964,16 @@ final class CloudSyncManager {
             do {
                 guard let remoteSnapshot = try await fetchFirebaseSnapshot() else {
                     statusMessage = "No cloud backup was found."
+                    appendAudit(action: "restore", outcome: "no-backup", snapshot: nil)
                     return nil
                 }
-                lastUploadedSnapshot = remoteSnapshot
+                markSnapshotAsUploaded(remoteSnapshot)
                 statusMessage = "Cloud data restored."
+                appendAudit(action: "restore", outcome: "restored", snapshot: remoteSnapshot)
                 return remoteSnapshot
             } catch {
                 statusMessage = "Cloud restore failed: \(error.localizedDescription)"
+                appendAudit(action: "restore", outcome: "failed: \(error.localizedDescription)", snapshot: nil)
                 return nil
             }
         }
@@ -11105,6 +11988,7 @@ final class CloudSyncManager {
             try await validateAccountAvailability()
         } catch {
             statusMessage = "Cloud restore unavailable: \(error.localizedDescription)"
+            appendAudit(action: "restore", outcome: "unavailable: \(error.localizedDescription)", snapshot: nil)
             return nil
         }
 
@@ -11117,14 +12001,17 @@ final class CloudSyncManager {
         do {
             guard let remoteSnapshot = try await fetchRemoteSnapshot() else {
                 statusMessage = "No cloud backup was found."
+                appendAudit(action: "restore", outcome: "no-backup", snapshot: nil)
                 return nil
             }
 
-            lastUploadedSnapshot = remoteSnapshot
+            markSnapshotAsUploaded(remoteSnapshot)
             statusMessage = "Cloud data restored."
+            appendAudit(action: "restore", outcome: "restored", snapshot: remoteSnapshot)
             return remoteSnapshot
         } catch {
             statusMessage = "Cloud restore failed: \(error.localizedDescription)"
+            appendAudit(action: "restore", outcome: "failed: \(error.localizedDescription)", snapshot: nil)
             return nil
         }
     }
@@ -11149,8 +12036,9 @@ final class CloudSyncManager {
                 let previousSnapshot = lastUploadedSnapshot ?? .empty
                 if let remoteSnapshot = try await fetchFirebaseSnapshot() {
                     if lastUploadedSnapshot == nil, preferRemoteOnFirstSync, snapshot.isEmpty {
-                        lastUploadedSnapshot = remoteSnapshot
+                        markSnapshotAsUploaded(remoteSnapshot)
                         statusMessage = "Cloud data restored."
+                        appendAudit(action: "sync", outcome: "restored-prefer-remote", snapshot: remoteSnapshot)
                         return remoteSnapshot
                     }
 
@@ -11158,27 +12046,44 @@ final class CloudSyncManager {
                     if mergedSnapshot != remoteSnapshot {
                         try await uploadFirebaseSnapshot(mergedSnapshot)
                     }
-                    lastUploadedSnapshot = mergedSnapshot
+                    markSnapshotAsUploaded(mergedSnapshot)
 
                     if mergedSnapshot != snapshot {
                         statusMessage = mergedSnapshot == remoteSnapshot ? "Cloud data updated." : "Cloud data merged."
+                        appendAudit(
+                            action: "sync",
+                            outcome: mergedSnapshot == remoteSnapshot ? "updated-from-remote" : "merged-local-remote",
+                            snapshot: mergedSnapshot
+                        )
                         return mergedSnapshot
                     }
 
                     statusMessage = mergedSnapshot == previousSnapshot ? "Cloud sync up to date." : "Cloud sync complete."
+                    appendAudit(
+                        action: "sync",
+                        outcome: mergedSnapshot == previousSnapshot ? "up-to-date" : "complete-no-local-change",
+                        snapshot: mergedSnapshot
+                    )
                     return nil
                 }
 
                 guard !snapshot.isEmpty, snapshot != previousSnapshot else {
                     statusMessage = lastUploadedSnapshot == nil ? "Cloud sync is ready." : "Cloud sync up to date."
+                    appendAudit(
+                        action: "sync",
+                        outcome: lastUploadedSnapshot == nil ? "ready-no-data" : "up-to-date",
+                        snapshot: snapshot
+                    )
                     return nil
                 }
 
                 try await uploadFirebaseSnapshot(snapshot)
-                lastUploadedSnapshot = snapshot
+                markSnapshotAsUploaded(snapshot)
                 statusMessage = lastUploadedSnapshot == nil ? "Cloud backup created." : "Cloud sync complete."
+                appendAudit(action: "sync", outcome: "uploaded-local-snapshot", snapshot: snapshot)
             } catch {
                 statusMessage = "Cloud sync failed: \(error.localizedDescription)"
+                appendAudit(action: "sync", outcome: "failed: \(error.localizedDescription)", snapshot: snapshot)
             }
 
             return nil
@@ -11203,8 +12108,9 @@ final class CloudSyncManager {
             let previousSnapshot = lastUploadedSnapshot ?? AppPersistenceSnapshot.empty
             if let remoteSnapshot = try await fetchRemoteSnapshot() {
                 if lastUploadedSnapshot == nil, preferRemoteOnFirstSync, snapshot.isEmpty {
-                    lastUploadedSnapshot = remoteSnapshot
+                    markSnapshotAsUploaded(remoteSnapshot)
                     statusMessage = "Cloud data restored."
+                    appendAudit(action: "sync", outcome: "restored-prefer-remote", snapshot: remoteSnapshot)
                     return remoteSnapshot
                 }
 
@@ -11218,28 +12124,45 @@ final class CloudSyncManager {
                     try await upload(snapshot: mergedSnapshot)
                 }
 
-                lastUploadedSnapshot = mergedSnapshot
+                markSnapshotAsUploaded(mergedSnapshot)
 
                 if mergedSnapshot != snapshot {
                     statusMessage = mergedSnapshot == remoteSnapshot ? "Cloud data updated from iCloud." : "Cloud data merged."
+                    appendAudit(
+                        action: "sync",
+                        outcome: mergedSnapshot == remoteSnapshot ? "updated-from-remote" : "merged-local-remote",
+                        snapshot: mergedSnapshot
+                    )
                     return mergedSnapshot
                 }
 
                 statusMessage = mergedSnapshot == previousSnapshot ? "Cloud sync up to date." : "Cloud sync complete."
+                appendAudit(
+                    action: "sync",
+                    outcome: mergedSnapshot == previousSnapshot ? "up-to-date" : "complete-no-local-change",
+                    snapshot: mergedSnapshot
+                )
                 return nil
             }
 
             guard !snapshot.isEmpty, snapshot != previousSnapshot else {
                 statusMessage = lastUploadedSnapshot == nil ? "Cloud sync is ready." : "Cloud sync up to date."
+                appendAudit(
+                    action: "sync",
+                    outcome: lastUploadedSnapshot == nil ? "ready-no-data" : "up-to-date",
+                    snapshot: snapshot
+                )
                 return nil
             }
 
             let isFirstUpload = lastUploadedSnapshot == nil
             try await upload(snapshot: snapshot)
-            lastUploadedSnapshot = snapshot
+            markSnapshotAsUploaded(snapshot)
             statusMessage = isFirstUpload ? "Cloud backup created." : "Cloud sync complete."
+            appendAudit(action: "sync", outcome: isFirstUpload ? "uploaded-first-backup" : "uploaded-local-snapshot", snapshot: snapshot)
         } catch {
             statusMessage = "Cloud sync failed: \(error.localizedDescription)"
+            appendAudit(action: "sync", outcome: "failed: \(error.localizedDescription)", snapshot: snapshot)
         }
 
         return nil
@@ -11264,14 +12187,18 @@ final class CloudSyncManager {
 
             do {
                 try await uploadFirebaseSnapshot(snapshot)
-                lastUploadedSnapshot = snapshot
+                markSnapshotAsUploaded(snapshot)
                 if pendingUploadSnapshot == snapshot {
                     pendingUploadSnapshot = nil
                 }
                 statusMessage = "Cloud sync complete."
+                appendAudit(action: "upload", outcome: "success", snapshot: snapshot)
             } catch {
-                pendingUploadSnapshot = snapshot
+                if pendingUploadSnapshot == nil {
+                    pendingUploadSnapshot = snapshot
+                }
                 statusMessage = "Cloud sync pending: \(error.localizedDescription)"
+                appendAudit(action: "upload", outcome: "pending: \(error.localizedDescription)", snapshot: snapshot)
             }
             return
         }
@@ -11279,6 +12206,7 @@ final class CloudSyncManager {
         guard configureCloudKitIfPossible() else {
             pendingUploadSnapshot = snapshot
             statusMessage = "Cloud sync is not configured yet."
+            appendAudit(action: "upload", outcome: "not-configured", snapshot: snapshot)
             return
         }
 
@@ -11301,14 +12229,18 @@ final class CloudSyncManager {
             try await validateAccountAvailability()
             try await ensureCustomZoneExists()
             try await upload(snapshot: snapshot)
-            lastUploadedSnapshot = snapshot
+            markSnapshotAsUploaded(snapshot)
             if pendingUploadSnapshot == snapshot {
                 pendingUploadSnapshot = nil
             }
             statusMessage = "Cloud sync complete."
+            appendAudit(action: "upload", outcome: "success", snapshot: snapshot)
         } catch {
-            pendingUploadSnapshot = snapshot
+            if pendingUploadSnapshot == nil {
+                pendingUploadSnapshot = snapshot
+            }
             statusMessage = "Cloud sync pending: \(error.localizedDescription)"
+            appendAudit(action: "upload", outcome: "pending: \(error.localizedDescription)", snapshot: snapshot)
         }
     }
 
@@ -11655,6 +12587,11 @@ final class CloudSyncManager {
             hasCompletedOnboarding: snapshot.store.hasCompletedOnboarding,
             hasAcceptedPrivacyPolicy: snapshot.store.hasAcceptedPrivacyPolicy,
             hasAcceptedLegalNotice: snapshot.store.hasAcceptedLegalNotice,
+            accountSubscriptionType: snapshot.store.accountSubscriptionType,
+            businessProfile: snapshot.store.businessProfile,
+            organizations: snapshot.store.organizations,
+            activeOrganizationID: snapshot.store.activeOrganizationID,
+            organizationMemberships: snapshot.store.organizationMemberships,
             vehicles: snapshot.store.vehicles,
             archivedVehicles: snapshot.store.archivedVehicles,
             activeVehicleID: snapshot.store.activeVehicleID,
@@ -11717,6 +12654,11 @@ final class CloudSyncManager {
             hasCompletedOnboarding: snapshot.store.hasCompletedOnboarding,
             hasAcceptedPrivacyPolicy: snapshot.store.hasAcceptedPrivacyPolicy,
             hasAcceptedLegalNotice: snapshot.store.hasAcceptedLegalNotice,
+            accountSubscriptionType: snapshot.store.accountSubscriptionType,
+            businessProfile: snapshot.store.businessProfile,
+            organizations: snapshot.store.organizations,
+            activeOrganizationID: snapshot.store.activeOrganizationID,
+            organizationMemberships: snapshot.store.organizationMemberships,
             vehicles: snapshot.store.vehicles,
             archivedVehicles: snapshot.store.archivedVehicles,
             activeVehicleID: snapshot.store.activeVehicleID,
@@ -12168,6 +13110,7 @@ final class CloudSyncManager {
             "unitSystem": snapshot.store.unitSystem.rawValue,
             "fuelVolumeUnit": snapshot.store.fuelVolumeUnit.rawValue,
             "fuelEconomyFormat": snapshot.store.fuelEconomyFormat.rawValue,
+            "preventAutoLock": snapshot.store.preventAutoLock,
             "vehicleDetectionEnabled": snapshot.store.vehicleDetectionEnabled,
             "hasCompletedOnboarding": snapshot.store.hasCompletedOnboarding,
             "hasAcceptedPrivacyPolicy": snapshot.store.hasAcceptedPrivacyPolicy,
@@ -12198,13 +13141,19 @@ final class CloudSyncManager {
 
         if let activeVehicleID = snapshot.store.activeVehicleID {
             data["activeVehicleID"] = activeVehicleID.uuidString
+        } else {
+            data["activeVehicleID"] = FieldValue.delete()
         }
         if let activeDriverID = snapshot.store.activeDriverID {
             data["activeDriverID"] = activeDriverID.uuidString
+        } else {
+            data["activeDriverID"] = FieldValue.delete()
         }
         if let businessProfile = snapshot.store.businessProfile,
            let businessProfileData = try? firestoreJSONObject(from: businessProfile) {
             data["businessProfile"] = businessProfileData
+        } else {
+            data["businessProfile"] = FieldValue.delete()
         }
 
         return data
@@ -12229,7 +13178,9 @@ final class CloudSyncManager {
             "isEnabled": vehicle.detectionProfile.isEnabled,
             "allowedSources": vehicle.detectionProfile.allowedSources.map(\.rawValue),
             "bluetoothPeripheralIdentifier": vehicle.detectionProfile.bluetoothPeripheralIdentifier as Any,
-            "bluetoothPeripheralName": vehicle.detectionProfile.bluetoothPeripheralName
+            "bluetoothPeripheralName": vehicle.detectionProfile.bluetoothPeripheralName,
+            "audioRouteIdentifier": vehicle.detectionProfile.audioRouteIdentifier as Any,
+            "audioRouteName": vehicle.detectionProfile.audioRouteName
         ]
         if let archivedAt = vehicle.archivedAt {
             data["archivedAt"] = Timestamp(date: archivedAt)
@@ -12403,6 +13354,19 @@ final class CloudSyncManager {
         return try JSONSerialization.jsonObject(with: data)
     }
 
+    private func firebaseDecodable<T: Decodable>(_ type: T.Type, from value: Any?) -> T? {
+        guard let value,
+              JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value)
+        else {
+            return nil
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(type, from: data)
+    }
+
     private func fetchFirebaseStructuredSnapshot(
         overlaying baseSnapshot: AppPersistenceSnapshot
     ) async throws -> FirebaseStructuredSnapshot? {
@@ -12531,6 +13495,18 @@ final class CloudSyncManager {
             fuelEconomyFormat = fuelEconomyFormat.compatibleFormat(for: unitSystem)
         }
 
+        let preventAutoLock = userData["preventAutoLock"] as? Bool ?? baseStore.preventAutoLock
+
+        var accountSubscriptionType = baseStore.accountSubscriptionType
+        if let rawAccountSubscriptionType = userData["accountSubscriptionType"] as? String,
+           let parsedAccountSubscriptionType = AccountSubscriptionType(rawValue: rawAccountSubscriptionType) {
+            accountSubscriptionType = parsedAccountSubscriptionType
+        }
+
+        let businessProfile =
+            firebaseDecodable(BusinessAccountProfile.self, from: userData["businessProfile"]) ??
+            baseStore.businessProfile
+
         let resolvedUserName =
             (userData["displayName"] as? String)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -12554,11 +13530,13 @@ final class CloudSyncManager {
             unitSystem: unitSystem,
             fuelVolumeUnit: fuelVolumeUnit,
             fuelEconomyFormat: fuelEconomyFormat,
-            preventAutoLock: baseStore.preventAutoLock,
+            preventAutoLock: preventAutoLock,
             vehicleDetectionEnabled: vehicleDetectionEnabled,
             hasCompletedOnboarding: userData["hasCompletedOnboarding"] as? Bool ?? baseStore.hasCompletedOnboarding,
             hasAcceptedPrivacyPolicy: userData["hasAcceptedPrivacyPolicy"] as? Bool ?? baseStore.hasAcceptedPrivacyPolicy,
             hasAcceptedLegalNotice: userData["hasAcceptedLegalNotice"] as? Bool ?? baseStore.hasAcceptedLegalNotice,
+            accountSubscriptionType: accountSubscriptionType,
+            businessProfile: businessProfile,
             organizations: restoredOrganizations.isEmpty ? baseStore.organizations : restoredOrganizations,
             activeOrganizationID: activeMembership?.organizationID ?? baseStore.activeOrganizationID,
             organizationMemberships: restoredMemberships.isEmpty ? baseStore.organizationMemberships : restoredMemberships,
@@ -12650,7 +13628,9 @@ final class CloudSyncManager {
                     .compactMap(VehicleConnectionSource.init(rawValue:))
             ),
             bluetoothPeripheralIdentifier: detectionData?["bluetoothPeripheralIdentifier"] as? String,
-            bluetoothPeripheralName: detectionData?["bluetoothPeripheralName"] as? String ?? ""
+            bluetoothPeripheralName: detectionData?["bluetoothPeripheralName"] as? String ?? "",
+            audioRouteIdentifier: detectionData?["audioRouteIdentifier"] as? String,
+            audioRouteName: detectionData?["audioRouteName"] as? String ?? ""
         )
 
         return VehicleProfile(
@@ -13011,10 +13991,10 @@ final class CloudSyncManager {
             activeOrganizationID: mergedValue(local.activeOrganizationID, remote.activeOrganizationID, baseline.activeOrganizationID),
             organizationMemberships: mergeCollection(local.organizationMemberships, remote.organizationMemberships, baseline.organizationMemberships),
             vehicles: mergeCollection(local.vehicles, remote.vehicles, baseline.vehicles),
-            archivedVehicles: local.archivedVehicles,
+            archivedVehicles: mergeCollection(local.archivedVehicles, remote.archivedVehicles, baseline.archivedVehicles),
             activeVehicleID: mergedValue(local.activeVehicleID, remote.activeVehicleID, baseline.activeVehicleID),
             drivers: mergeCollection(local.drivers, remote.drivers, baseline.drivers),
-            archivedDrivers: local.archivedDrivers,
+            archivedDrivers: mergeCollection(local.archivedDrivers, remote.archivedDrivers, baseline.archivedDrivers),
             activeDriverID: mergedValue(local.activeDriverID, remote.activeDriverID, baseline.activeDriverID),
             trips: mergeCollection(local.trips, remote.trips, baseline.trips).sorted { $0.date > $1.date },
             fuelEntries: mergeCollection(local.fuelEntries, remote.fuelEntries, baseline.fuelEntries).sorted { $0.date > $1.date },

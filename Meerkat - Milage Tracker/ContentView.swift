@@ -27,6 +27,10 @@ private extension UTType {
 }
 
 struct ContentView: View {
+    private enum Constants {
+        static let minimumForegroundRefreshInterval: TimeInterval = 180
+    }
+
     @Environment(\.scenePhase) private var scenePhase
     @State private var appModel = SharedAppModel.shared
     @State private var store = SharedAppModel.shared.store
@@ -47,7 +51,7 @@ struct ContentView: View {
                 UnlockView(authSession: authSession)
             case .unlocked:
                 if subscriptionManager.hasActiveSubscription || authSession.isDemoModeEnabled || authSession.hasOwnerAccess || authSession.hasApprovedBetaAccess {
-                    if isWaitingForInitialCloudRestore {
+                    if shouldShowBlockingInitialCloudRestore {
                         initialCloudRestoreView
                     } else if shouldShowOnboarding {
                         OnboardingView(
@@ -96,6 +100,7 @@ struct ContentView: View {
             await subscriptionManager.setSelectedAccountType(store.accountSubscriptionType)
             await subscriptionManager.prepare()
             await bootstrapCloudSyncIfNeeded(preferRemoteOnFirstSync: true)
+            await appModel.repairRecentTripAddressesAndSyncIfNeeded()
             requestLocationAuthorizationIfNeeded()
             await checkMaintenanceReminders()
             applyPendingOnboardingResetIfNeeded()
@@ -117,6 +122,7 @@ struct ContentView: View {
                 Task {
                     await subscriptionManager.refreshSubscriptionStatus()
                     await bootstrapCloudSyncIfNeeded(refreshRemote: true)
+                    await appModel.repairRecentTripAddressesAndSyncIfNeeded()
                 }
                 requestLocationAuthorizationIfNeeded()
                 Task {
@@ -171,8 +177,16 @@ struct ContentView: View {
         !store.hasCompletedOnboarding || !store.hasAcceptedPrivacyPolicy || !store.hasAcceptedLegalNotice
     }
 
-    private var isWaitingForInitialCloudRestore: Bool {
-        authSession.canUseCloudSyncFeatures && !cloudSync.hasCompletedInitialSync
+    private var shouldShowBlockingInitialCloudRestore: Bool {
+        guard authSession.canUseCloudSyncFeatures,
+              !cloudSync.hasCompletedInitialSync,
+              isBootstrappingCloudData else {
+            return false
+        }
+
+        // Keep the app fully usable offline/on reopen when local data already exists.
+        // Only block when there is no local snapshot yet and we are truly restoring.
+        return persistenceSnapshot.isEmpty
     }
 
     private var initialCloudRestoreView: some View {
@@ -210,7 +224,7 @@ struct ContentView: View {
     private var mainTabView: some View {
         TabView {
             NavigationStack {
-                TripsView(store: store, tripTracker: tripTracker)
+                TripsView(store: store, tripTracker: tripTracker, cloudSync: cloudSync)
             }
             .tabItem {
                 Label("Trips", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
@@ -219,7 +233,8 @@ struct ContentView: View {
             NavigationStack {
                 FuelView(
                     store: store,
-                    tripTracker: tripTracker
+                    tripTracker: tripTracker,
+                    cloudSync: cloudSync
                 )
             }
             .tabItem {
@@ -227,7 +242,7 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                MaintenanceView(store: store, tripTracker: tripTracker)
+                MaintenanceView(store: store, tripTracker: tripTracker, cloudSync: cloudSync)
             }
             .tabItem {
                 Label("Maintenance", systemImage: "wrench.and.screwdriver")
@@ -328,6 +343,14 @@ struct ContentView: View {
         refreshRemote: Bool = false
     ) async {
         guard authSession.canUseCloudSyncFeatures, appModel.hasLoadedPersistence, !isBootstrappingCloudData else {
+            return
+        }
+
+        if refreshRemote,
+           !cloudSync.shouldRefreshOnForeground(
+                snapshot: persistenceSnapshot,
+                minimumInterval: Constants.minimumForegroundRefreshInterval
+           ) {
             return
         }
 
@@ -546,7 +569,7 @@ private struct LoginView: View {
                         Text("Account Type")
                             .font(.headline)
                         Picker("Account Type", selection: accountTypeBinding) {
-                            ForEach(AccountSubscriptionType.allCases) { type in
+                            ForEach(availableAccountTypes) { type in
                                 Text(type.title).tag(type)
                             }
                         }
@@ -699,8 +722,24 @@ private struct LoginView: View {
     private var accountTypeBinding: Binding<AccountSubscriptionType> {
         Binding(
             get: { appModel.store.accountSubscriptionType },
-            set: { appModel.store.accountSubscriptionType = $0 }
+            set: { appModel.store.accountSubscriptionType = normalizedAccountType($0) }
         )
+    }
+
+    private var availableAccountTypes: [AccountSubscriptionType] {
+        if AppFeatureFlags.businessSubscriptionsEnabled {
+            return AccountSubscriptionType.allCases
+        }
+
+        return AccountSubscriptionType.allCases.filter { $0 != .business }
+    }
+
+    private func normalizedAccountType(_ type: AccountSubscriptionType) -> AccountSubscriptionType {
+        guard !AppFeatureFlags.businessSubscriptionsEnabled, type == .business else {
+            return type
+        }
+
+        return .personal
     }
 }
 
@@ -726,7 +765,6 @@ private struct OnboardingView: View {
     @State private var driverLicenceClass = ""
     @State private var driverEmailAddress = ""
     @State private var driverPhoneNumber = ""
-    @State private var driverPermissions: Set<OrganizationPermission> = []
     @State private var businessAccountManagerPhone = ""
     @State private var businessName = ""
     @State private var businessLegalEntityName = ""
@@ -1091,25 +1129,6 @@ private struct OnboardingView: View {
                             .keyboardType(.phonePad)
                             .textFieldStyle(.roundedBorder)
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Permission Levels")
-                                .font(.headline)
-                            ForEach(OrganizationPermission.allCases) { permission in
-                                Toggle(
-                                    permission.title,
-                                    isOn: Binding(
-                                        get: { driverPermissions.contains(permission) },
-                                        set: { isOn in
-                                            if isOn {
-                                                driverPermissions.insert(permission)
-                                            } else {
-                                                driverPermissions.remove(permission)
-                                            }
-                                        }
-                                    )
-                                )
-                            }
-                        }
                     }
 
                     if let activeDriver = store.activeDriver {
@@ -1393,7 +1412,7 @@ private struct OnboardingView: View {
             licenceClass: driverLicenceClass.trimmingCharacters(in: .whitespacesAndNewlines),
             emailAddress: normalizedDriverEmail,
             phoneNumber: driverPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines),
-            permissions: Array(driverPermissions).sorted { $0.rawValue < $1.rawValue }
+            permissions: []
         )
 
         store.addDriver(driver)
@@ -1452,7 +1471,6 @@ private struct OnboardingView: View {
         driverLicenceClass = ""
         driverEmailAddress = ""
         driverPhoneNumber = ""
-        driverPermissions = []
     }
 
     private func persistBusinessProfileIfNeeded() {
@@ -1707,7 +1725,7 @@ private struct SubscriptionGateView: View {
                         Text("Account Type")
                             .font(.headline)
                         Picker("Account Type", selection: accountTypeBinding) {
-                            ForEach(AccountSubscriptionType.allCases) { type in
+                            ForEach(availableAccountTypes) { type in
                                 Text(type.title).tag(type)
                             }
                         }
@@ -1788,7 +1806,9 @@ private struct SubscriptionGateView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                await subscriptionManager.setSelectedAccountType(SharedAppModel.shared.store.accountSubscriptionType)
+                let selectedAccountType = normalizedAccountType(SharedAppModel.shared.store.accountSubscriptionType)
+                SharedAppModel.shared.store.accountSubscriptionType = selectedAccountType
+                await subscriptionManager.setSelectedAccountType(selectedAccountType)
                 await subscriptionManager.refreshSubscriptionStatus()
             }
         }
@@ -1799,13 +1819,30 @@ private struct SubscriptionGateView: View {
         Binding(
             get: { SharedAppModel.shared.store.accountSubscriptionType },
             set: { newType in
-                SharedAppModel.shared.store.accountSubscriptionType = newType
+                let normalizedType = normalizedAccountType(newType)
+                SharedAppModel.shared.store.accountSubscriptionType = normalizedType
                 Task {
-                    await subscriptionManager.setSelectedAccountType(newType)
+                    await subscriptionManager.setSelectedAccountType(normalizedType)
                     await subscriptionManager.refreshSubscriptionStatus()
                 }
             }
         )
+    }
+
+    private var availableAccountTypes: [AccountSubscriptionType] {
+        if AppFeatureFlags.businessSubscriptionsEnabled {
+            return AccountSubscriptionType.allCases
+        }
+
+        return AccountSubscriptionType.allCases.filter { $0 != .business }
+    }
+
+    private func normalizedAccountType(_ type: AccountSubscriptionType) -> AccountSubscriptionType {
+        guard !AppFeatureFlags.businessSubscriptionsEnabled, type == .business else {
+            return type
+        }
+
+        return .personal
     }
 }
 
@@ -1957,6 +1994,7 @@ private struct UnlockView: View {
 private struct TripsView: View {
     @Bindable var store: MileageStore
     @Bindable var tripTracker: TripTracker
+    @Bindable var cloudSync: CloudSyncManager
     @State private var isPresentingOdometerEditor = false
     @State private var isPresentingManualTripEntry = false
     @State private var editedOdometerReading = ""
@@ -2252,6 +2290,11 @@ private struct TripsView: View {
                     Image(systemName: "exclamationmark.circle.fill")
                         .foregroundStyle(.red)
                 }
+                if shouldShowPendingBadge(for: trip) {
+                    pendingCloudSyncBadge
+                } else if shouldShowUploadedBadge(for: trip) {
+                    uploadedToCloudBadge
+                }
                 Spacer()
                 Text(distanceText(for: trip))
                     .font(.subheadline.weight(.semibold))
@@ -2292,6 +2335,28 @@ private struct TripsView: View {
         let fallbackMeters = store.unitSystem.meters(forDisplayedDistance: max(trip.odometerEnd - trip.odometerStart, 0))
         let displayDistance = trip.distanceMeters > 0 ? trip.distanceMeters : fallbackMeters
         return store.unitSystem.distanceString(for: displayDistance)
+    }
+
+    private func shouldShowUploadedBadge(for trip: Trip) -> Bool {
+        cloudSync.uploadedTripIDs.contains(trip.id)
+    }
+
+    private func shouldShowPendingBadge(for trip: Trip) -> Bool {
+        cloudSync.pendingTripIDs.contains(trip.id)
+    }
+
+    private var uploadedToCloudBadge: some View {
+        Image(systemName: "checkmark.icloud.fill")
+            .font(.caption2)
+            .foregroundStyle(.green)
+            .accessibilityLabel("Uploaded to Firebase")
+    }
+
+    private var pendingCloudSyncBadge: some View {
+        Image(systemName: "icloud.and.arrow.up.fill")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .accessibilityLabel("Pending Firebase upload")
     }
 
     private func statPill(title: String, value: String) -> some View {
@@ -3559,6 +3624,7 @@ private struct AllowanceBalanceBanner: View {
 private struct FuelView: View {
     @Bindable var store: MileageStore
     let tripTracker: TripTracker
+    @Bindable var cloudSync: CloudSyncManager
     @State private var isPresentingAddFuel = false
     @State private var editingFuelEntry: FuelEntry?
     @State private var isPresentingCamera = false
@@ -3577,6 +3643,10 @@ private struct FuelView: View {
         store.allowanceBalanceSummary(for: store.activeVehicleID)
     }
 
+    private var activeVehicleFuelEntries: [FuelEntry] {
+        store.fuelEntriesForActiveVehicle()
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
@@ -3592,13 +3662,13 @@ private struct FuelView: View {
                 HStack(alignment: .top, spacing: 14) {
                     fuelSummaryCard(
                         title: store.currentTaxYearLabel,
-                        value: store.currencyString(for: store.currentTaxYearFuelSpend),
+                        value: store.currencyString(for: store.currentTaxYearFuelSpendForActiveVehicle),
                         caption: "Total fuel spending"
                     )
 
                     fuelSummaryCard(
                         title: "Monthly Avg",
-                        value: store.monthlyAverageFuelEconomyText,
+                        value: store.monthlyAverageFuelEconomyTextForActiveVehicle,
                         caption: "Fuel economy"
                     )
                 }
@@ -3619,15 +3689,15 @@ private struct FuelView: View {
                     Text("Recent Fuel-ups")
                         .font(.title3.weight(.semibold))
 
-                    if store.fuelEntries.isEmpty {
-                        Text("No fuel-ups recorded yet.")
+                    if activeVehicleFuelEntries.isEmpty {
+                        Text(store.activeVehicle == nil ? "Select a vehicle to view fuel-ups." : "No fuel-ups recorded yet for this vehicle.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(20)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     } else {
-                        ForEach(store.fuelEntries.groupedByMonth(using: \.date)) { group in
+                        ForEach(activeVehicleFuelEntries.groupedByMonth(using: \.date)) { group in
                             MonthlyDisclosureSection(group: group) { entry in
                                 fuelEntryRow(entry)
                             }
@@ -4005,6 +4075,11 @@ private struct FuelView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                if shouldShowPendingBadge(for: entry) {
+                    pendingCloudSyncBadge
+                } else if shouldShowUploadedBadge(for: entry) {
+                    uploadedToCloudBadge
+                }
                 Spacer()
                 Text(store.currencyString(for: entry.totalCost))
                     .font(.headline.weight(.semibold))
@@ -4055,6 +4130,28 @@ private struct FuelView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func shouldShowUploadedBadge(for entry: FuelEntry) -> Bool {
+        cloudSync.uploadedFuelEntryIDs.contains(entry.id)
+    }
+
+    private func shouldShowPendingBadge(for entry: FuelEntry) -> Bool {
+        cloudSync.pendingFuelEntryIDs.contains(entry.id)
+    }
+
+    private var uploadedToCloudBadge: some View {
+        Image(systemName: "checkmark.icloud.fill")
+            .font(.caption2)
+            .foregroundStyle(.green)
+            .accessibilityLabel("Uploaded to Firebase")
+    }
+
+    private var pendingCloudSyncBadge: some View {
+        Image(systemName: "icloud.and.arrow.up.fill")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .accessibilityLabel("Pending Firebase upload")
     }
 
     private var receiptPreviewImage: Image? {
@@ -4204,6 +4301,7 @@ private struct FuelView: View {
 private struct MaintenanceView: View {
     @Bindable var store: MileageStore
     let tripTracker: TripTracker
+    @Bindable var cloudSync: CloudSyncManager
     @State private var isPresentingAddMaintenance = false
     @State private var editingMaintenanceRecord: MaintenanceRecord?
     @State private var shopName = ""
@@ -4236,6 +4334,11 @@ private struct MaintenanceView: View {
 
     private var activeReminderRecords: [MaintenanceRecord] {
         store.activeMaintenanceReminders(currentOdometer: currentOdometer)
+            .filter { $0.vehicleID == store.activeVehicleID }
+    }
+
+    private var activeVehicleMaintenanceRecords: [MaintenanceRecord] {
+        store.maintenanceRecordsForActiveVehicle()
     }
 
     private var allowanceSummary: AllowanceBalanceSummary? {
@@ -4257,7 +4360,7 @@ private struct MaintenanceView: View {
                 HStack(alignment: .top, spacing: 14) {
                     maintenanceSummaryCard(
                         title: store.currentTaxYearLabel,
-                        value: store.currencyString(for: store.currentTaxYearMaintenanceSpend),
+                        value: store.currencyString(for: store.currentTaxYearMaintenanceSpendForActiveVehicle),
                         caption: "Maintenance spend"
                     )
 
@@ -4280,15 +4383,15 @@ private struct MaintenanceView: View {
                     Text("Recent Maintenance")
                         .font(.title3.weight(.semibold))
 
-                    if store.maintenanceRecords.isEmpty {
-                        Text("No maintenance records added yet.")
+                    if activeVehicleMaintenanceRecords.isEmpty {
+                        Text(store.activeVehicle == nil ? "Select a vehicle to view maintenance records." : "No maintenance records added yet for this vehicle.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(20)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     } else {
-                        ForEach(store.maintenanceRecords.groupedByMonth(using: \.date)) { group in
+                        ForEach(activeVehicleMaintenanceRecords.groupedByMonth(using: \.date)) { group in
                             MonthlyDisclosureSection(group: group) { record in
                                 maintenanceRow(record)
                             }
@@ -4824,6 +4927,11 @@ private struct MaintenanceView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                if shouldShowPendingBadge(for: record) {
+                    pendingCloudSyncBadge
+                } else if shouldShowUploadedBadge(for: record) {
+                    uploadedToCloudBadge
+                }
                 Spacer()
                 Text(store.currencyString(for: record.totalCost))
                     .font(.headline.weight(.semibold))
@@ -4892,6 +5000,28 @@ private struct MaintenanceView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private func shouldShowUploadedBadge(for record: MaintenanceRecord) -> Bool {
+        cloudSync.uploadedMaintenanceRecordIDs.contains(record.id)
+    }
+
+    private func shouldShowPendingBadge(for record: MaintenanceRecord) -> Bool {
+        cloudSync.pendingMaintenanceRecordIDs.contains(record.id)
+    }
+
+    private var uploadedToCloudBadge: some View {
+        Image(systemName: "checkmark.icloud.fill")
+            .font(.caption2)
+            .foregroundStyle(.green)
+            .accessibilityLabel("Uploaded to Firebase")
+    }
+
+    private var pendingCloudSyncBadge: some View {
+        Image(systemName: "icloud.and.arrow.up.fill")
+            .font(.caption2)
+            .foregroundStyle(.orange)
+            .accessibilityLabel("Pending Firebase upload")
     }
 
     private var distanceUnitLabel: String {
@@ -5974,7 +6104,10 @@ private struct SettingsView: View {
     @State private var otherScheduledExpenses: [ScheduledExpenseDraft] = []
     @State private var vehicleDetectionEnabled = false
     @State private var useCarPlayDetection = false
+    @State private var useAudioRouteDetection = false
     @State private var useBluetoothPeripheralDetection = false
+    @State private var selectedAudioRouteIdentifier = ""
+    @State private var selectedAudioRouteName = ""
     @State private var selectedBluetoothPeripheralIdentifier = ""
     @State private var driverName = ""
     @State private var driverDateOfBirth = Date.now
@@ -5982,7 +6115,6 @@ private struct SettingsView: View {
     @State private var driverLicenceClass = ""
     @State private var driverEmailAddress = ""
     @State private var driverPhoneNumber = ""
-    @State private var driverPermissions: Set<OrganizationPermission> = []
 
     var body: some View {
         Form {
@@ -6303,7 +6435,30 @@ private struct SettingsView: View {
 
                         if vehicleDetectionEnabled {
                             Toggle("Use CarPlay", isOn: $useCarPlayDetection)
+                            Toggle("Use connected car audio", isOn: $useAudioRouteDetection)
                             Toggle("Use Bluetooth peripheral or beacon", isOn: $useBluetoothPeripheralDetection)
+
+                            if useAudioRouteDetection {
+                                Button("Detect Connected Car Audio") {
+                                    vehicleConnectionManager.refreshAudioRouteSnapshot()
+                                }
+
+                                Picker("Connected audio device", selection: $selectedAudioRouteIdentifier) {
+                                    Text("Select connected audio device").tag("")
+                                    ForEach(vehicleConnectionManager.connectedAudioRoutes) { route in
+                                        Text(route.summary).tag(route.id)
+                                    }
+                                }
+                                .onChange(of: selectedAudioRouteIdentifier) { _, newValue in
+                                    selectedAudioRouteName = vehicleConnectionManager.connectedAudioRoutes
+                                        .first(where: { $0.id == newValue })?
+                                        .name ?? selectedAudioRouteName
+                                }
+
+                                Text("Connect your phone to the vehicle for calls or media, detect the active route, then assign it to this vehicle.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
 
                             if useBluetoothPeripheralDetection {
                                 Button("Request Bluetooth Access") {
@@ -6312,7 +6467,7 @@ private struct SettingsView: View {
 
                                 Picker("Bluetooth device", selection: $selectedBluetoothPeripheralIdentifier) {
                                     Text("Select a device").tag("")
-                                    ForEach(vehicleConnectionManager.discoveredBluetoothDevices) { device in
+                                    ForEach(vehicleConnectionManager.visibleBluetoothDevices) { device in
                                         Text(device.name).tag(device.id.uuidString)
                                     }
                                 }
@@ -6320,6 +6475,11 @@ private struct SettingsView: View {
                                 Text("Choose the beacon or Bluetooth peripheral assigned to this vehicle. The app will auto-select this vehicle when that detector is nearby.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
+                                if vehicleConnectionManager.hiddenUnknownBluetoothDeviceCount > 0 {
+                                    Text("\(vehicleConnectionManager.hiddenUnknownBluetoothDeviceCount) unnamed device(s) hidden to keep the list clean.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
@@ -6353,23 +6513,6 @@ private struct SettingsView: View {
                     TextField("Phone", text: $driverPhoneNumber)
                         .keyboardType(.phonePad)
 
-                    Section("Permission Levels") {
-                        ForEach(OrganizationPermission.allCases) { permission in
-                            Toggle(
-                                permission.title,
-                                isOn: Binding(
-                                    get: { driverPermissions.contains(permission) },
-                                    set: { isOn in
-                                        if isOn {
-                                            driverPermissions.insert(permission)
-                                        } else {
-                                            driverPermissions.remove(permission)
-                                        }
-                                    }
-                                )
-                            )
-                        }
-                    }
                 }
                 .confirmationDialog(
                     "Add Driver As Employee?",
@@ -6596,7 +6739,11 @@ private struct SettingsView: View {
         }
 
         if vehicleDetectionEnabled {
-            if !useCarPlayDetection && !useBluetoothPeripheralDetection {
+            if !useCarPlayDetection && !useAudioRouteDetection && !useBluetoothPeripheralDetection {
+                return false
+            }
+
+            if useAudioRouteDetection && selectedAudioRouteIdentifier.isEmpty {
                 return false
             }
 
@@ -6643,12 +6790,15 @@ private struct SettingsView: View {
             isEnabled: vehicleDetectionEnabled,
             allowedSources: Set([
                 useCarPlayDetection ? VehicleConnectionSource.carPlay : nil,
+                useAudioRouteDetection ? VehicleConnectionSource.audioRoute : nil,
                 useBluetoothPeripheralDetection ? VehicleConnectionSource.bluetoothPeripheral : nil
             ].compactMap { $0 }),
             bluetoothPeripheralIdentifier: useBluetoothPeripheralDetection ? selectedBluetoothPeripheralIdentifier : nil,
             bluetoothPeripheralName: vehicleConnectionManager.discoveredBluetoothDevices
                 .first(where: { $0.id.uuidString == selectedBluetoothPeripheralIdentifier })?
-                .name ?? ""
+                .name ?? "",
+            audioRouteIdentifier: useAudioRouteDetection ? selectedAudioRouteIdentifier : nil,
+            audioRouteName: useAudioRouteDetection ? resolvedSelectedAudioRouteName() : ""
         )
 
         let vehicle = VehicleProfile(
@@ -6704,7 +6854,10 @@ private struct SettingsView: View {
         otherScheduledExpenses = []
         vehicleDetectionEnabled = false
         useCarPlayDetection = false
+        useAudioRouteDetection = false
         useBluetoothPeripheralDetection = false
+        selectedAudioRouteIdentifier = ""
+        selectedAudioRouteName = ""
         selectedBluetoothPeripheralIdentifier = ""
     }
 
@@ -6779,6 +6932,14 @@ private struct SettingsView: View {
         )
     }
 
+    private func resolvedSelectedAudioRouteName() -> String {
+        if let route = vehicleConnectionManager.connectedAudioRoutes.first(where: { $0.id == selectedAudioRouteIdentifier }) {
+            return route.name
+        }
+
+        return selectedAudioRouteName
+    }
+
     private func saveDriver() {
         let isNewDriver = editingDriverID == nil
         let normalizedDriverEmail = driverEmailAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -6790,7 +6951,7 @@ private struct SettingsView: View {
             licenceClass: driverLicenceClass,
             emailAddress: normalizedDriverEmail,
             phoneNumber: driverPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines),
-            permissions: Array(driverPermissions).sorted { $0.rawValue < $1.rawValue }
+            permissions: []
         )
 
         if editingDriverID == nil {
@@ -7038,7 +7199,6 @@ private struct SettingsView: View {
         driverLicenceClass = ""
         driverEmailAddress = ""
         driverPhoneNumber = ""
-        driverPermissions = []
     }
 
     private func startAddingVehicle() {
@@ -7071,7 +7231,10 @@ private struct SettingsView: View {
         insuranceStartDate = vehicle.insurancePlan?.schedule.startDate ?? .now
         vehicleDetectionEnabled = vehicle.detectionProfile.isEnabled
         useCarPlayDetection = vehicle.detectionProfile.usesCarPlay
+        useAudioRouteDetection = vehicle.detectionProfile.usesAudioRoute
         useBluetoothPeripheralDetection = vehicle.detectionProfile.usesBluetoothPeripheral
+        selectedAudioRouteIdentifier = vehicle.detectionProfile.audioRouteIdentifier ?? ""
+        selectedAudioRouteName = vehicle.detectionProfile.audioRouteName
         selectedBluetoothPeripheralIdentifier = vehicle.detectionProfile.bluetoothPeripheralIdentifier ?? ""
         otherScheduledExpenses = vehicle.otherScheduledExpenses.map {
             ScheduledExpenseDraft(
@@ -7153,7 +7316,6 @@ private struct SettingsView: View {
         driverLicenceClass = driver.licenceClass
         driverEmailAddress = driver.emailAddress
         driverPhoneNumber = driver.phoneNumber
-        driverPermissions = Set(driver.permissions)
         isPresentingAddDriver = true
     }
 
@@ -8598,13 +8760,18 @@ private struct SettingsVehicleDetectionView: View {
     @ViewBuilder
     private var nearbyBluetoothDevicesSection: some View {
         Section("Nearby Bluetooth Devices") {
-            if vehicleConnectionManager.discoveredBluetoothDevices.isEmpty {
+            if vehicleConnectionManager.visibleBluetoothDevices.isEmpty {
                 Text("No Bluetooth peripherals discovered yet. Power on the beacon or accessory and keep it nearby so the app can discover it.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(vehicleConnectionManager.discoveredBluetoothDevices) { device in
+                ForEach(vehicleConnectionManager.visibleBluetoothDevices) { device in
                     bluetoothDeviceRow(device)
                 }
+            }
+            if vehicleConnectionManager.hiddenUnknownBluetoothDeviceCount > 0 {
+                Text("\(vehicleConnectionManager.hiddenUnknownBluetoothDeviceCount) unnamed device(s) hidden to reduce clutter.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }

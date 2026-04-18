@@ -1077,4 +1077,221 @@ struct MeerkatMilageTrackerTests {
         #expect(store.maintenanceRecords[0].vehicleProfileName == firstVehicle.displayName)
     }
 
+    @MainActor
+    @Test
+    func fuelEconomyTextUsesDistanceBetweenVehicleFuelUps() {
+        let store = MileageStore()
+        let vehicle = VehicleProfile(
+            profileName: "Fuel Economy Vehicle",
+            make: "Ford",
+            model: "Ranger",
+            color: "White",
+            numberPlate: "ECON1",
+            startingOdometerReading: 1_000,
+            ownershipType: .personal
+        )
+        store.addVehicle(vehicle)
+        store.activeVehicleID = vehicle.id
+
+        let firstEntry = FuelEntry(
+            vehicleID: vehicle.id,
+            vehicleProfileName: vehicle.displayName,
+            station: "Station A",
+            volume: 12,
+            totalCost: 35,
+            odometer: 1_000,
+            date: Date.now.addingTimeInterval(-86_400)
+        )
+        let secondEntry = FuelEntry(
+            vehicleID: vehicle.id,
+            vehicleProfileName: vehicle.displayName,
+            station: "Station B",
+            volume: 10,
+            totalCost: 32,
+            odometer: 1_100,
+            date: .now
+        )
+
+        store.addFuelEntry(firstEntry)
+        store.addFuelEntry(secondEntry)
+
+        #expect(store.fuelEconomyText(for: secondEntry) == "37.9 mpg")
+    }
+
+    @MainActor
+    @Test
+    func monthlyAverageFuelEconomyDoesNotMixIntervalsAcrossVehicles() {
+        let store = MileageStore()
+        let calendar = Calendar.current
+        let year = calendar.component(.year, from: .now)
+
+        let vehicleA = VehicleProfile(
+            profileName: "Vehicle A",
+            make: "Toyota",
+            model: "Corolla",
+            color: "Blue",
+            numberPlate: "VEHA",
+            startingOdometerReading: 1_000,
+            ownershipType: .personal
+        )
+        let vehicleB = VehicleProfile(
+            profileName: "Vehicle B",
+            make: "Honda",
+            model: "Civic",
+            color: "Red",
+            numberPlate: "VEHB",
+            startingOdometerReading: 10_000,
+            ownershipType: .personal
+        )
+        store.addVehicle(vehicleA)
+        store.addVehicle(vehicleB)
+
+        let jan10 = calendar.date(from: DateComponents(year: year, month: 1, day: 10)) ?? .now
+        let feb10 = calendar.date(from: DateComponents(year: year, month: 2, day: 10)) ?? .now
+
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleA.id,
+                vehicleProfileName: vehicleA.displayName,
+                station: "A-1",
+                volume: 10,
+                totalCost: 30,
+                odometer: 1_000,
+                date: jan10
+            )
+        )
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleA.id,
+                vehicleProfileName: vehicleA.displayName,
+                station: "A-2",
+                volume: 10,
+                totalCost: 30,
+                odometer: 1_100,
+                date: feb10
+            )
+        )
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleB.id,
+                vehicleProfileName: vehicleB.displayName,
+                station: "B-1",
+                volume: 10,
+                totalCost: 30,
+                odometer: 10_000,
+                date: jan10
+            )
+        )
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleB.id,
+                vehicleProfileName: vehicleB.displayName,
+                station: "B-2",
+                volume: 10,
+                totalCost: 30,
+                odometer: 10_100,
+                date: feb10
+            )
+        )
+
+        #expect(store.monthlyAverageFuelEconomyText == "37.9 mpg")
+    }
+
+    @MainActor
+    @Test
+    func activeVehicleFuelAndMaintenanceMetricsAreVehicleScoped() {
+        let store = MileageStore()
+        let vehicleA = VehicleProfile(
+            profileName: "Vehicle A",
+            make: "Ford",
+            model: "Ranger",
+            color: "White",
+            numberPlate: "SCOPEA",
+            startingOdometerReading: 1_000,
+            ownershipType: .personal
+        )
+        let vehicleB = VehicleProfile(
+            profileName: "Vehicle B",
+            make: "Toyota",
+            model: "Corolla",
+            color: "Black",
+            numberPlate: "SCOPEB",
+            startingOdometerReading: 5_000,
+            ownershipType: .personal
+        )
+
+        store.addVehicle(vehicleA)
+        store.addVehicle(vehicleB)
+
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleA.id,
+                vehicleProfileName: vehicleA.displayName,
+                station: "A Station 1",
+                volume: 10,
+                totalCost: 30,
+                odometer: 1_000,
+                date: Date.now.addingTimeInterval(-86_400)
+            )
+        )
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleA.id,
+                vehicleProfileName: vehicleA.displayName,
+                station: "A Station 2",
+                volume: 10,
+                totalCost: 35,
+                odometer: 1_100,
+                date: .now
+            )
+        )
+        store.addFuelEntry(
+            FuelEntry(
+                vehicleID: vehicleB.id,
+                vehicleProfileName: vehicleB.displayName,
+                station: "B Station 1",
+                volume: 10,
+                totalCost: 80,
+                odometer: 5_100,
+                date: .now
+            )
+        )
+
+        store.addMaintenanceRecord(
+            MaintenanceRecord(
+                vehicleID: vehicleA.id,
+                vehicleProfileName: vehicleA.displayName,
+                shopName: "A Shop",
+                odometer: 1_120,
+                date: .now,
+                type: .oilChange,
+                totalCost: 120
+            )
+        )
+        store.addMaintenanceRecord(
+            MaintenanceRecord(
+                vehicleID: vehicleB.id,
+                vehicleProfileName: vehicleB.displayName,
+                shopName: "B Shop",
+                odometer: 5_120,
+                date: .now,
+                type: .other,
+                totalCost: 220
+            )
+        )
+
+        store.activeVehicleID = vehicleA.id
+        #expect(store.fuelEntriesForActiveVehicle().count == 2)
+        #expect(store.currentTaxYearFuelSpendForActiveVehicle == 65)
+        #expect(store.maintenanceRecordsForActiveVehicle().count == 1)
+        #expect(store.currentTaxYearMaintenanceSpendForActiveVehicle == 120)
+        #expect(store.monthlyAverageFuelEconomyTextForActiveVehicle == "37.9 mpg")
+
+        store.activeVehicleID = vehicleB.id
+        #expect(store.fuelEntriesForActiveVehicle().count == 1)
+        #expect(store.currentTaxYearFuelSpendForActiveVehicle == 80)
+        #expect(store.maintenanceRecordsForActiveVehicle().count == 1)
+        #expect(store.currentTaxYearMaintenanceSpendForActiveVehicle == 220)
+    }
+
 }
