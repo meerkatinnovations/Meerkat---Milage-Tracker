@@ -24,17 +24,17 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>meerkat-mileage-tracker</string>
-				</array>
-			</dict>
-			<dict>
-				<key>CFBundleURLName</key>
-				<string>google-signin</string>
-				<key>CFBundleURLSchemes</key>
-				<array>
-					<string>com.googleusercontent.apps.118756369287-0km4imcomim37qfdc85nm8utq4ogsb1g</string>
-				</array>
-			</dict>
-		</array>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.118756369287-0km4imcomim37qfdc85nm8utq4ogsb1g</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -68,6 +68,17 @@
 					<string>CarPlay Configuration</string>
 					<key>UISceneDelegateClassName</key>
 					<string>$(PRODUCT_MODULE_NAME).MeerkatCarPlaySceneDelegate</string>
+				</dict>
+			</array>
+			<key>CPTemplateApplicationInstrumentClusterSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>CPTemplateApplicationInstrumentClusterScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>CarPlay Instrument Cluster Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).MeerkatCarPlayInstrumentClusterSceneDelegate</string>
 				</dict>
 			</array>
 		</dict>

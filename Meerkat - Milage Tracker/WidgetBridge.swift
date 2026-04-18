@@ -15,7 +15,15 @@ enum WidgetBridge {
     }
 
     static func tripTypeURL(_ tripType: TripType) -> URL {
-        URL(string: "\(urlScheme)://trip-type?value=\(tripType.rawValue)")!
+        tripTypeURL(rawValue: tripType.rawValue)
+    }
+
+    static func tripTypeURL(rawValue: String) -> URL {
+        URL(string: "\(urlScheme)://trip-type?value=\(rawValue)")!
+    }
+
+    static func tripRecordingURL(action: String) -> URL {
+        URL(string: "\(urlScheme)://trip-recording?action=\(action)")!
     }
 
     static func save(snapshot: AppWidgetSnapshot, forceReload: Bool = false) {

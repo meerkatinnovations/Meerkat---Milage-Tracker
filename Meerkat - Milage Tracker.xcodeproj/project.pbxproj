@@ -10,6 +10,12 @@
 		FC3484F92F802F0D00AD28CA /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484F82F802F0D00AD28CA /* FirebaseAuth */; };
 		FC3484FB2F802F0D00AD28CA /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484FA2F802F0D00AD28CA /* FirebaseCore */; };
 		FC3484FF2F802F0D00AD28CA /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = FC3484FE2F802F0D00AD28CA /* FirebaseFirestore */; };
+		FCAA70A12F94075B004CF4A2 /* MeerkatWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAA70A02F94075B004CF4A2 /* MeerkatWidget.swift */; };
+		FCAA70BB2F940CAC004CF4A2 /* MeerkatWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FCAA70A62F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FCAA70C12F940CE0004CF4A2 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCAA70A92F940CAB004CF4A2 /* SwiftUI.framework */; };
+		FCAA70C22F940CE0004CF4A2 /* SwiftUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FCAA70A92F940CAB004CF4A2 /* SwiftUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FCAA70C42F940CE2004CF4A2 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCAA70A72F940CAB004CF4A2 /* WidgetKit.framework */; };
+		FCAA70C52F940CE2004CF4A2 /* WidgetKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FCAA70A72F940CAB004CF4A2 /* WidgetKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,7 +33,40 @@
 			remoteGlobalIDString = FCA5048F2F679899006EA397;
 			remoteInfo = "Meerkat - Milage Tracker";
 		};
+		FCAA70B92F940CAC004CF4A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FCA504882F679899006EA397 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FCAA70A52F940CAB004CF4A2;
+			remoteInfo = MeerkatWidgetExtensionExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FCAA70C02F940CAC004CF4A2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FCAA70BB2F940CAC004CF4A2 /* MeerkatWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCAA70C32F940CE0004CF4A2 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				FCAA70C22F940CE0004CF4A2 /* SwiftUI.framework in Embed Frameworks */,
+				FCAA70C52F940CE2004CF4A2 /* WidgetKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FC5C07CA2F68E00600A7E7A7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -42,6 +81,14 @@
 		FCA504902F679899006EA397 /* Meerkat - Milage Tracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Meerkat - Milage Tracker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCA5049F2F67989A006EA397 /* Meerkat - Milage TrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Meerkat - Milage TrackerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCA504A92F67989A006EA397 /* Meerkat - Milage TrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Meerkat - Milage TrackerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCAA70A02F94075B004CF4A2 /* MeerkatWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeerkatWidget.swift; sourceTree = "<group>"; };
+		FCAA70A62F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MeerkatWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCAA70A72F940CAB004CF4A2 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		FCAA70A92F940CAB004CF4A2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		FCAA70C72F941BB8004CF4A2 /* styles.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = styles.css; sourceTree = "<group>"; };
+		FCAA70C82F941BB8004CF4A2 /* app-link.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "app-link.js"; sourceTree = "<group>"; };
+		FCAA70C92F941BB8004CF4A2 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		FCAA70CA2F941BB8004CF4A2 /* invite.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = invite.html; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -58,6 +105,13 @@
 				"GoogleService-Info.plist",
 			);
 			target = FCA504A82F67989A006EA397 /* Meerkat - Milage TrackerUITests */;
+		};
+		FCAA70BF2F940CAC004CF4A2 /* Exceptions for "MeerkatWidgetExtension" folder in "MeerkatWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = FCAA70A52F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -79,6 +133,14 @@
 		FCA504AC2F67989A006EA397 /* Meerkat - Milage TrackerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Meerkat - Milage TrackerUITests";
+			sourceTree = "<group>";
+		};
+		FCAA70AB2F940CAB004CF4A2 /* MeerkatWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FCAA70BF2F940CAC004CF4A2 /* Exceptions for "MeerkatWidgetExtension" folder in "MeerkatWidgetExtensionExtension" target */,
+			);
+			path = MeerkatWidgetExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -108,12 +170,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCAA70A32F940CAB004CF4A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCAA70C12F940CE0004CF4A2 /* SwiftUI.framework in Frameworks */,
+				FCAA70C42F940CE2004CF4A2 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		FC3484F72F802F0D00AD28CA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FCAA70A72F940CAB004CF4A2 /* WidgetKit.framework */,
+				FCAA70A92F940CAB004CF4A2 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -134,6 +207,7 @@
 				FC81B5682F8EA6D900A369EA /* firestore.indexes.json */,
 				FC81B56B2F8EA70200A369EA /* firestore.rules */,
 				FC81B56D2F8EA70200A369EA /* README.md */,
+				FCAA70C62F941B88004CF4A2 /* hosting */,
 			);
 			path = firebase;
 			sourceTree = "<group>";
@@ -162,11 +236,13 @@
 				FCA504922F679899006EA397 /* Meerkat - Milage Tracker */,
 				FCA504A22F67989A006EA397 /* Meerkat - Milage TrackerTests */,
 				FCA504AC2F67989A006EA397 /* Meerkat - Milage TrackerUITests */,
+				FCAA70AB2F940CAB004CF4A2 /* MeerkatWidgetExtension */,
 				FCA504912F679899006EA397 /* Products */,
 				FC69A6922F68A2520064EF64 /* Meerkat - Milage Tracker.entitlements */,
 				FC5C07CA2F68E00600A7E7A7 /* Info.plist */,
 				FC3484F72F802F0D00AD28CA /* Frameworks */,
 				FC81B5632F8EA69D00A369EA /* backend */,
+				FCAA70A02F94075B004CF4A2 /* MeerkatWidget.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -176,8 +252,20 @@
 				FCA504902F679899006EA397 /* Meerkat - Milage Tracker.app */,
 				FCA5049F2F67989A006EA397 /* Meerkat - Milage TrackerTests.xctest */,
 				FCA504A92F67989A006EA397 /* Meerkat - Milage TrackerUITests.xctest */,
+				FCAA70A62F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		FCAA70C62F941B88004CF4A2 /* hosting */ = {
+			isa = PBXGroup;
+			children = (
+				FCAA70C72F941BB8004CF4A2 /* styles.css */,
+				FCAA70C82F941BB8004CF4A2 /* app-link.js */,
+				FCAA70C92F941BB8004CF4A2 /* index.html */,
+				FCAA70CA2F941BB8004CF4A2 /* invite.html */,
+			);
+			path = hosting;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -190,10 +278,12 @@
 				FCA5048C2F679899006EA397 /* Sources */,
 				FCA5048D2F679899006EA397 /* Frameworks */,
 				FCA5048E2F679899006EA397 /* Resources */,
+				FCAA70C02F940CAC004CF4A2 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FCAA70BA2F940CAC004CF4A2 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				FCA504922F679899006EA397 /* Meerkat - Milage Tracker */,
@@ -254,6 +344,29 @@
 			productReference = FCA504A92F67989A006EA397 /* Meerkat - Milage TrackerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		FCAA70A52F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FCAA70BC2F940CAC004CF4A2 /* Build configuration list for PBXNativeTarget "MeerkatWidgetExtensionExtension" */;
+			buildPhases = (
+				FCAA70A22F940CAB004CF4A2 /* Sources */,
+				FCAA70A32F940CAB004CF4A2 /* Frameworks */,
+				FCAA70A42F940CAB004CF4A2 /* Resources */,
+				FCAA70C32F940CE0004CF4A2 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FCAA70AB2F940CAB004CF4A2 /* MeerkatWidgetExtension */,
+			);
+			name = MeerkatWidgetExtensionExtension;
+			packageProductDependencies = (
+			);
+			productName = MeerkatWidgetExtensionExtension;
+			productReference = FCAA70A62F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -275,6 +388,9 @@
 					FCA504A82F67989A006EA397 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = FCA5048F2F679899006EA397;
+					};
+					FCAA70A52F940CAB004CF4A2 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -298,6 +414,7 @@
 				FCA5048F2F679899006EA397 /* Meerkat - Milage Tracker */,
 				FCA5049E2F67989A006EA397 /* Meerkat - Milage TrackerTests */,
 				FCA504A82F67989A006EA397 /* Meerkat - Milage TrackerUITests */,
+				FCAA70A52F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -324,6 +441,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCAA70A42F940CAB004CF4A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -331,6 +455,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FCAA70A12F94075B004CF4A2 /* MeerkatWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,6 +467,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		FCA504A52F67989A006EA397 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCAA70A22F940CAB004CF4A2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -360,6 +492,11 @@
 			isa = PBXTargetDependency;
 			target = FCA5048F2F679899006EA397 /* Meerkat - Milage Tracker */;
 			targetProxy = FCA504AA2F67989A006EA397 /* PBXContainerItemProxy */;
+		};
+		FCAA70BA2F940CAC004CF4A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FCAA70A52F940CAB004CF4A2 /* MeerkatWidgetExtensionExtension */;
+			targetProxy = FCAA70B92F940CAC004CF4A2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -507,7 +644,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -544,7 +681,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -655,6 +792,70 @@
 			};
 			name = Release;
 		};
+		FCAA70BD2F940CAC004CF4A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D22LQZ6TBY;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MeerkatWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MeerkatWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Meerkat Innovations. All rights reserved.";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker.MeerkatWidgetExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FCAA70BE2F940CAC004CF4A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D22LQZ6TBY;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MeerkatWidgetExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MeerkatWidgetExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Meerkat Innovations. All rights reserved.";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.miletracker.app.Meerkat---Milage-Tracker.MeerkatWidgetExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -690,6 +891,15 @@
 			buildConfigurations = (
 				FCA504BA2F67989A006EA397 /* Debug */,
 				FCA504BB2F67989A006EA397 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FCAA70BC2F940CAC004CF4A2 /* Build configuration list for PBXNativeTarget "MeerkatWidgetExtensionExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FCAA70BD2F940CAC004CF4A2 /* Debug */,
+				FCAA70BE2F940CAC004CF4A2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
