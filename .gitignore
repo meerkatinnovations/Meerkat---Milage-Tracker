@@ -67,3 +67,24 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Xcode user/workspace local data
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/
+*.xcodeproj/xcuserdata/
+
+# Local generated/runtime folders
+backend/firebase/functions/lib/
+functions/
+google-cloud-sdk/
+
+# Local sibling web workspace clone
+meerkat-web/
+meerkat\u200b-web\u200b/
+
+# Xcode workspace folders nested under .xcodeproj
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/
+
+# Any local meerkat web clone variants (including zero-width chars)
+meerkat*web*/
