@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="apple-itunes-app" content="app-id=6760921171, app-argument=meerkat-mileage-tracker://">
+    <title>Meerkat Mileage Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="shell">
+        <section class="card">
+            <div class="brand">
+                <div class="badge">M</div>
+                <strong>Meerkat Mileage Tracker</strong>
+            </div>
+            <h1>Track business and personal mileage with less admin.</h1>
+            <p>
+                Meerkat runs on iPhone and syncs your trips, fuel, and maintenance activity.
+                Continue in the app for secure sign in and full tracking features.
+            </p>
+            <div class="stack">
+                <button id="open-app" class="button button-primary" type="button">Open in App</button>
+                <button id="open-store" class="button button-secondary" type="button">Download on the App Store</button>
+            </div>
+            <p class="meta">If the app is not installed, you will be redirected to the App Store.</p>
+        </section>
+
+        <aside class="card">
+            <h2>Why this page?</h2>
+            <p>
+                The Meerkat portal is app-first. This page helps new users install the app,
+                while returning users can jump back in quickly.
+            </p>
+            <ul class="list">
+                <li>Open directly with <code>meerkat-mileage-tracker://</code></li>
+                <li>Fallback to App Store when needed</li>
+                <li>Works on iPhone and iPad</li>
+            </ul>
+            <p class="notice">Tip: use <code>?autostart=1</code> to trigger an automatic open attempt on mobile.</p>
+        </aside>
+    </main>
+    <script src="/app-link.js"></script>
+</body>
+</html>
